@@ -415,201 +415,200 @@ export const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
       try {
         // Generate text response
-          const sourceMessages = baseHistory ?? messages;
-          const conversationHistory: UIMessage[] = sourceMessages.map((msg) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            assistantId: msg.assistantId,
-            attachments: msg.attachments || [],
-          }));
+        const sourceMessages = baseHistory ?? messages;
+        const conversationHistory: UIMessage[] = sourceMessages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          assistantId: msg.assistantId,
+          attachments: msg.attachments || [],
+        }));
 
-          // When regenerating, we already include the triggering user message
-          if (!skipUserMessage) {
-            conversationHistory.push(userChatMessage);
+        // When regenerating, we already include the triggering user message
+        if (!skipUserMessage) {
+          conversationHistory.push(userChatMessage);
+        }
+        logger.info('conversationHistory length', conversationHistory.length);
+
+        let streamedContent = '';
+        let assistantMessageId = '';
+
+        let systemPrompt = agent
+          ? typeof agent.systemPrompt === 'function'
+            ? await Promise.resolve(agent.systemPrompt())
+            : agent.systemPrompt
+          : undefined;
+
+        // If dynamic prompt is enabled for this agent, compose it with providers
+        if (agent?.dynamicPrompt?.enabled) {
+          try {
+            const root = await getValidatedWorkspaceRoot();
+            const { finalSystemPrompt } = await previewSystemPrompt({
+              agent: agent,
+              workspaceRoot: root,
+            });
+            systemPrompt = finalSystemPrompt;
+          } catch (e) {
+            logger.warn('Failed to compose dynamic system prompt, falling back to static:', e);
           }
-          logger.info('conversationHistory length', conversationHistory.length);
+        }
 
-          let streamedContent = '';
-          let assistantMessageId = '';
+        logger.info('Using system prompt:', systemPrompt);
+        const tools = agent?.tools ?? {};
+        logger.info('Using tools:', Object.keys(tools));
 
-          let systemPrompt = agent
-            ? typeof agent.systemPrompt === 'function'
-              ? await Promise.resolve(agent.systemPrompt())
-              : agent.systemPrompt
-            : undefined;
+        // Handle assistant message start - create new message for each iteration
+        const handleAssistantMessageStart = async () => {
+          // Finalize the previous message in both UI and database before creating a new one
+          if (assistantMessageId && streamedContent) {
+            // First, update UI to finalize the previous message (set isStreaming: false)
+            // This is CRITICAL to prevent the first message from "disappearing" in the UI
+            updateMessageById(assistantMessageId, streamedContent, false);
 
-          // If dynamic prompt is enabled for this agent, compose it with providers
-          if (agent?.dynamicPrompt?.enabled) {
-            try {
-              const root = await getValidatedWorkspaceRoot();
-              const { finalSystemPrompt } = await previewSystemPrompt({
-                agent: agent,
-                workspaceRoot: root,
-              });
-              systemPrompt = finalSystemPrompt;
-            } catch (e) {
-              logger.warn('Failed to compose dynamic system prompt, falling back to static:', e);
-            }
-          }
-
-          logger.info('Using system prompt:', systemPrompt);
-          const tools = agent?.tools ?? {};
-          logger.info('Using tools:', Object.keys(tools));
-
-          // Handle assistant message start - create new message for each iteration
-          const handleAssistantMessageStart = async () => {
-            // Finalize the previous message in both UI and database before creating a new one
-            if (assistantMessageId && streamedContent) {
-              // First, update UI to finalize the previous message (set isStreaming: false)
-              // This is CRITICAL to prevent the first message from "disappearing" in the UI
-              updateMessageById(assistantMessageId, streamedContent, false);
-
-              // Then, save to database
-              if (activeConversationId) {
-                try {
-                  await updateMessage(assistantMessageId, streamedContent);
-                  logger.info('Saved previous assistant message before starting new iteration');
-                } catch (error) {
-                  logger.error('Failed to save previous assistant message:', error);
-                }
-              }
-            }
-
-            // Reset streamedContent when starting a new assistant message to prevent accumulation
-            streamedContent = '';
-            // Create new assistant message for this iteration
-            assistantMessageId = addMessage('assistant', '', true, agentId);
-
-            // Save initial message to database immediately with the same ID
+            // Then, save to database
             if (activeConversationId) {
               try {
-                await saveMessage(
-                  activeConversationId,
-                  'assistant',
-                  '',
-                  0,
-                  agentId,
-                  undefined,
-                  assistantMessageId
-                );
+                await updateMessage(assistantMessageId, streamedContent);
+                logger.info('Saved previous assistant message before starting new iteration');
               } catch (error) {
-                logger.error('Failed to save initial assistant message:', error);
+                logger.error('Failed to save previous assistant message:', error);
               }
             }
-          };
+          }
 
-          await llmService.runAgentLoop(
-            {
-              messages: conversationHistory,
-              model,
-              systemPrompt,
-              tools,
-              isThink: true,
-              suppressReasoning: false,
-              agentId,
-            },
-            {
-              onChunk: (chunk: string) => {
-                if (abortController.signal.aborted) return;
-                streamedContent += chunk;
-                updateMessageById(assistantMessageId, streamedContent, true);
-              },
-              onComplete: async (fullText: string) => {
-                if (abortController.signal.aborted) return;
-                // Use streamedContent instead of fullText to avoid duplication across iterations
-                // streamedContent contains only the content for the current message
-                // fullText accumulates content across all iterations which causes reasoning duplication
-                updateMessageById(assistantMessageId, streamedContent, false);
-                onResponseReceived?.(fullText);
+          // Reset streamedContent when starting a new assistant message to prevent accumulation
+          streamedContent = '';
+          // Create new assistant message for this iteration
+          assistantMessageId = addMessage('assistant', '', true, agentId);
 
-                // Update the message content in database (message was already saved in handleAssistantMessageStart)
-                // Note: We must update even if streamedContent is empty to persist the final state
-                if (activeConversationId && assistantMessageId) {
-                  try {
-                    await updateMessage(assistantMessageId, streamedContent);
-                  } catch (error) {
-                    logger.error('Failed to update assistant message:', error);
-                  }
-                }
-
-                // Generate AI title for new conversations after first assistant message is saved
-                // This avoids database conflicts by ensuring all message persistence is complete
-                if (isNewConversation && activeConversationId) {
-                  ConversationManager.generateAndUpdateTitle(
-                    activeConversationId,
-                    userMessage
-                  ).catch((error) => {
-                    logger.error('Background title generation failed:', error);
-                  });
-                }
-
-                // Set loading to false when response is complete
-                setIsLoading(false);
-                setStatus('ready');
-                setServerStatus('');
-                stopExecution();
-
-                // Send notification if window is not focused
-                await notificationService.notifyAgentComplete();
-              },
-              onError: (error: Error) => {
-                logger.error('streamResponse error', error);
-                if (abortController.signal.aborted) return;
-                const errorMessage =
-                  error.message || 'Sorry, I encountered some issues. Please try again later.';
-                setError(errorMessage);
-
-                // Show error message via serverStatus in the loading indicator area
-                // This ensures error appears at the bottom of the conversation, not before user's next message
-                setServerStatus(`Error: ${errorMessage}`);
-
-                onError?.(errorMessage);
-                // Keep isLoading true so the error status is visible
-                // setIsLoading and status will be reset in onComplete or when user sends next message
-              },
-              onStatus: (status: string) => {
-                if (abortController.signal.aborted) return;
-                setServerStatus(status);
-              },
-              onToolMessage: handleToolMessage,
-              onAssistantMessageStart: handleAssistantMessageStart,
-              onAttachment: async (attachment) => {
-                if (abortController.signal.aborted) return;
-                // Add attachment to the current assistant message
-                if (assistantMessageId) {
-                  // 1. Update UI
-                  addAttachmentToMessage(assistantMessageId, attachment);
-
-                  // 2. Persist to database
-                  if (activeConversationId) {
-                    try {
-                      await saveAttachment(assistantMessageId, attachment);
-                      logger.info('Saved attachment to database', {
-                        messageId: assistantMessageId,
-                        attachmentId: attachment.id,
-                        type: attachment.type,
-                      });
-                    } catch (error) {
-                      logger.error('Failed to save attachment to database:', error);
-                    }
-                  }
-                }
-              },
-            },
-            abortController,
-            activeConversationId // Pass conversation ID for logging
-          );
-
+          // Save initial message to database immediately with the same ID
           if (activeConversationId) {
-            // Then fetch the updated conversation data and update state
-            const updatedConv = await getConversationDetails(activeConversationId);
-            if (updatedConv) {
-              logger.info('Updated conversation cost:', updatedConv.cost);
-              setConversation(updatedConv);
+            try {
+              await saveMessage(
+                activeConversationId,
+                'assistant',
+                '',
+                0,
+                agentId,
+                undefined,
+                assistantMessageId
+              );
+            } catch (error) {
+              logger.error('Failed to save initial assistant message:', error);
             }
           }
+        };
+
+        await llmService.runAgentLoop(
+          {
+            messages: conversationHistory,
+            model,
+            systemPrompt,
+            tools,
+            isThink: true,
+            suppressReasoning: false,
+            agentId,
+          },
+          {
+            onChunk: (chunk: string) => {
+              if (abortController.signal.aborted) return;
+              streamedContent += chunk;
+              updateMessageById(assistantMessageId, streamedContent, true);
+            },
+            onComplete: async (fullText: string) => {
+              if (abortController.signal.aborted) return;
+              // Use streamedContent instead of fullText to avoid duplication across iterations
+              // streamedContent contains only the content for the current message
+              // fullText accumulates content across all iterations which causes reasoning duplication
+              updateMessageById(assistantMessageId, streamedContent, false);
+              onResponseReceived?.(fullText);
+
+              // Update the message content in database (message was already saved in handleAssistantMessageStart)
+              // Note: We must update even if streamedContent is empty to persist the final state
+              if (activeConversationId && assistantMessageId) {
+                try {
+                  await updateMessage(assistantMessageId, streamedContent);
+                } catch (error) {
+                  logger.error('Failed to update assistant message:', error);
+                }
+              }
+
+              // Generate AI title for new conversations after first assistant message is saved
+              // This avoids database conflicts by ensuring all message persistence is complete
+              if (isNewConversation && activeConversationId) {
+                ConversationManager.generateAndUpdateTitle(activeConversationId, userMessage).catch(
+                  (error) => {
+                    logger.error('Background title generation failed:', error);
+                  }
+                );
+              }
+
+              // Set loading to false when response is complete
+              setIsLoading(false);
+              setStatus('ready');
+              setServerStatus('');
+              stopExecution();
+
+              // Send notification if window is not focused
+              await notificationService.notifyAgentComplete();
+            },
+            onError: (error: Error) => {
+              logger.error('streamResponse error', error);
+              if (abortController.signal.aborted) return;
+              const errorMessage =
+                error.message || 'Sorry, I encountered some issues. Please try again later.';
+              setError(errorMessage);
+
+              // Show error message via serverStatus in the loading indicator area
+              // This ensures error appears at the bottom of the conversation, not before user's next message
+              setServerStatus(`Error: ${errorMessage}`);
+
+              onError?.(errorMessage);
+              // Keep isLoading true so the error status is visible
+              // setIsLoading and status will be reset in onComplete or when user sends next message
+            },
+            onStatus: (status: string) => {
+              if (abortController.signal.aborted) return;
+              setServerStatus(status);
+            },
+            onToolMessage: handleToolMessage,
+            onAssistantMessageStart: handleAssistantMessageStart,
+            onAttachment: async (attachment) => {
+              if (abortController.signal.aborted) return;
+              // Add attachment to the current assistant message
+              if (assistantMessageId) {
+                // 1. Update UI
+                addAttachmentToMessage(assistantMessageId, attachment);
+
+                // 2. Persist to database
+                if (activeConversationId) {
+                  try {
+                    await saveAttachment(assistantMessageId, attachment);
+                    logger.info('Saved attachment to database', {
+                      messageId: assistantMessageId,
+                      attachmentId: attachment.id,
+                      type: attachment.type,
+                    });
+                  } catch (error) {
+                    logger.error('Failed to save attachment to database:', error);
+                  }
+                }
+              }
+            },
+          },
+          abortController,
+          activeConversationId // Pass conversation ID for logging
+        );
+
+        if (activeConversationId) {
+          // Then fetch the updated conversation data and update state
+          const updatedConv = await getConversationDetails(activeConversationId);
+          if (updatedConv) {
+            logger.info('Updated conversation cost:', updatedConv.cost);
+            setConversation(updatedConv);
+          }
+        }
       } catch (error) {
         if (abortController.signal.aborted) return;
         const errorMessage =

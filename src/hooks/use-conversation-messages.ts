@@ -115,19 +115,16 @@ export function useConversationMessages(): UseConversationMessagesReturn {
     }
   }, []);
 
-  const saveAttachment = useCallback(
-    async (messageId: string, attachment: MessageAttachment) => {
-      try {
-        setError(null);
-        await databaseService.saveAttachment(messageId, attachment);
-      } catch (err) {
-        logger.error('Failed to save attachment:', err);
-        setError('Failed to save attachment');
-        throw err;
-      }
-    },
-    []
-  );
+  const saveAttachment = useCallback(async (messageId: string, attachment: MessageAttachment) => {
+    try {
+      setError(null);
+      await databaseService.saveAttachment(messageId, attachment);
+    } catch (err) {
+      logger.error('Failed to save attachment:', err);
+      setError('Failed to save attachment');
+      throw err;
+    }
+  }, []);
 
   const getLatestUserMessageContent = useCallback(async (): Promise<string | null> => {
     try {
