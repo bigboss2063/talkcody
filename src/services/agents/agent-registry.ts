@@ -51,9 +51,9 @@ class AgentRegistry {
     // const { CodingAgent } = await import('./coding-agent');
     const { CodeReviewAgent } = await import('./code-review-agent');
     const { GeneralAgent } = await import('./general-agent');
-    // const { WriterAgent } = await import('./writer-agent');
+    const { WriterAgent } = await import('./writer-agent');
     const { ContextGathererAgent } = await import('./context-gatherer-agent');
-    // const { DocumentWriterAgent } = await import('./document-writer-agent');
+    const { DocumentWriterAgent } = await import('./document-writer-agent');
     const { InitProjectAgent } = await import('./init-project-agent');
     const { ImageGeneratorAgent } = await import('./image-generator-agent');
 
@@ -66,9 +66,9 @@ class AgentRegistry {
       // CodingAgent.getDefinition(),
       CodeReviewAgent.getDefinition(),
       GeneralAgent.getDefinition(),
-      // WriterAgent.getDefinition(),
+      WriterAgent.getDefinition(),
       ContextGathererAgent.getDefinition(),
-      // DocumentWriterAgent.getDefinition(),
+      DocumentWriterAgent.getDefinition(),
       InitProjectAgent.getDefinition(),
       ImageGeneratorAgent.getDefinition(),
     ];

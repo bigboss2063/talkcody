@@ -25,11 +25,20 @@ export function convertToolForAI(toolWithUI: ToolWithUI, keyName: string) {
   }
 
   // Return vercel ai library compatible tool
-  return tool({
-    description: toolWithUI.description,
-    inputSchema: toolWithUI.inputSchema,
-    execute: toolWithUI.execute,
-  });
+  // Ensure description is dynamic if the original tool has a dynamic description
+  return Object.defineProperty(
+    tool({
+      description: toolWithUI.description,
+      inputSchema: toolWithUI.inputSchema,
+      execute: toolWithUI.execute,
+    }),
+    'description',
+    {
+      get: () => toolWithUI.description,
+      enumerable: true,
+      configurable: true,
+    }
+  );
 }
 
 /**

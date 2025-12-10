@@ -3,17 +3,90 @@ import { CallAgentToolDoing } from '@/components/tools/call-agent-tool-doing';
 import { CallAgentToolResult } from '@/components/tools/call-agent-tool-result';
 import { createTool } from '@/lib/create-tool';
 import { generateId } from '@/lib/utils';
-import { agentRegistry } from '@/services/agents/agent-registry';
 import { previewSystemPrompt } from '@/services/prompt/preview';
 import { getValidatedWorkspaceRoot } from '@/services/workspace-root-service';
 import { useNestedToolsStore } from '@/stores/nested-tools-store';
 import type { AgentDefinition, UIMessage } from '@/types/agent';
 import { logger } from '../logger';
 
+async function getSubAgents(): Promise<string> {
+  try {
+    const { agentRegistry } = await import('@/services/agents/agent-registry');
+    await agentRegistry.loadAllAgents();
+    const agents = agentRegistry
+      .list()
+      // Avoid recursive self-call; planner should not be spawned via callAgent
+      .filter((agent) => agent.id !== 'planner')
+      .map((agent) => {
+        const name = agent.id || agent.name;
+        const description = agent.description?.trim() || 'No description available';
+        return `- ${name}: ${description}`;
+      });
+
+    if (agents.length === 0) {
+      return '- No subagents available';
+    }
+
+    return agents.join('\n');
+  } catch (error) {
+    logger.warn('callAgent: failed to load agent list for description', error);
+    return '- (Failed to load subagent list)';
+  }
+}
+
+const getToolDescription = (
+  agentsList: string
+) => `Call a registered sub-agent by id for a focused task. Subagents start with an empty context; they only see what you pass in \`context\`.
+
+**Purpose**
+- Offload substantial, self-contained work (e.g., multi-file refactors, deep debugging, research sweeps) while keeping the main thread clean.
+- Run independent tasks in parallel; sequence dependent tasks to avoid conflicts.
+- Avoid trivial usage; subagents are for meaningful units of work, not small edits.
+
+**Before you call**
+- Pick the most suitable agent; if none fits, handle it yourself or gather missing info.
+- Decide the exact deliverable and success criteria; do not forward the raw user prompt.
+- Confirm which files/resources will be touched to populate \`targets\`.
+
+**How to write \`task\`**
+- Describe the outcome, scope, and constraints in 2–6 sentences.
+- Include acceptance criteria, edge cases, and non-goals when relevant.
+- Keep it self-contained; avoid references to prior turns or hidden context.
+
+**How to write \`context\`**
+- Provide every artifact needed: file paths, code snippets, schemas, requirements, platform constraints, env details.
+- Paste critical code inline; do not assume the sub-agent can read files you did not quote.
+- State testing expectations (commands, coverage focus) and formatting/linting rules if applicable.
+
+**Targets & parallelism**
+- Set \`targets\` to the specific files/modules the agent will modify or read heavily.
+- For independent tasks, issue multiple \`callAgent\` calls in the same response with distinct \`targets\`.
+- For dependent tasks, run sequentially and feed outputs forward yourself.
+
+**Safety & quality**
+- Never call without adequate context; the sub-agent has zero history.
+- Avoid spawning if the task is faster to do directly.
+- If the chosen model or agent is unavailable, fall back gracefully or notify the user.
+
+**Examples**
+- Split a refactor across multiple files by spawning one agent per file with explicit \`targets\`.
+- Ask one agent to map an unfamiliar directory while another fixes tests elsewhere.
+- Run parallel research queries (e.g., API options vs. performance tuning) with separate agents.
+
+## Available subagents
+- Pick the best-fit subagent (do not assume only one exists):
+${agentsList}`;
+
+let currentDescription = getToolDescription('- (Loading subagents...)');
+
+// Start loading in background to avoid top-level await blocking and circular dependency issues
+getSubAgents().then((agentsList) => {
+  currentDescription = getToolDescription(agentsList);
+});
+
 export const callAgent = createTool({
   name: 'callAgent',
-  description:
-    'Call a registered sub-agent by id to perform a specific task. Use multiple callAgent calls in the SAME response for independent subtasks; include `targets` per call to enable safe parallel execution and avoid conflicts. Use sequential calls only when targets overlap or dependencies exist.',
+  description: currentDescription,
   inputSchema: z.object({
     agentId: z.string().describe('The id of the registered agent to call'),
     task: z.string().describe('The instruction or task to be executed by the agent'),
@@ -91,6 +164,7 @@ export const callAgent = createTool({
         return { success: false, message: 'Request was aborted' };
       }
 
+      const { agentRegistry } = await import('@/services/agents/agent-registry');
       const agent = await agentRegistry.getWithResolvedTools(agentId);
       if (!agent) {
         logger.error(`callAgent: Agent not found: ${agentId}`);
@@ -131,10 +205,14 @@ export const callAgent = createTool({
         },
       ];
 
-      let systemPrompt =
-        agent && typeof agent.systemPrompt === 'function'
-          ? await Promise.resolve(agent.systemPrompt())
-          : agent?.systemPrompt;
+      let systemPrompt: string | undefined;
+      if (agent) {
+        if (typeof agent.systemPrompt === 'function') {
+          systemPrompt = await Promise.resolve(agent.systemPrompt());
+        } else {
+          systemPrompt = agent.systemPrompt;
+        }
+      }
 
       if (agent?.dynamicPrompt?.enabled) {
         try {
@@ -222,4 +300,11 @@ export const callAgent = createTool({
       output={result?.task_result}
     />
   ),
+});
+
+// Override description property with a getter to return the current (updated) description
+Object.defineProperty(callAgent, 'description', {
+  get: () => currentDescription,
+  enumerable: true,
+  configurable: true,
 });
