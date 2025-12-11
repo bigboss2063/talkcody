@@ -2,6 +2,7 @@
 
 import type { MarketplaceAgent, Tag } from '@talkcody/shared';
 import { Download, GitFork, Pause, Pencil, Play, Share2, Star, Trash2, User } from 'lucide-react';
+import { BetaBadge } from '@/components/beta-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ type UnifiedAgent = (MarketplaceAgent | AgentDefinition | Agent) & {
   // For local agents (database agents use source_type, not sourceType)
   marketplace_id?: string;
   is_enabled?: boolean;
+  isBeta?: boolean;
 };
 
 interface UnifiedAgentCardProps {
@@ -94,6 +96,7 @@ export function UnifiedAgentCard({
       className="group relative cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 border-border/50 hover:border-primary/20 bg-gradient-to-br from-card via-card to-card/95 overflow-hidden"
       onClick={onClick}
     >
+      {agent.isBeta && <BetaBadge variant="corner" className="z-10" />}
       {/* Subtle gradient overlay on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-primary/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 

@@ -44,6 +44,10 @@ export interface ToolMetadata {
   getTargetFile?: (input: Record<string, unknown>) => string | string[] | null;
   /** Whether to render "doing" UI for this tool. Set to false for fast operations to avoid UI flash. Default: true */
   renderDoingUI?: boolean;
+  /** Whether this tool is in beta/preview */
+  isBeta?: boolean;
+  /** Optional custom label for the beta badge */
+  badgeLabel?: string;
 }
 
 export interface ToolDefinition {
@@ -189,6 +193,7 @@ export const TOOL_DEFINITIONS = {
       canConcurrent: true,
       fileOperation: false,
       renderDoingUI: true,
+      isBeta: true,
       getTargetFile: (input) => {
         const targets = (input as { targets?: unknown })?.targets;
         if (Array.isArray(targets)) {
@@ -393,19 +398,33 @@ export async function getToolsForUI(): Promise<
     id: string;
     label: string;
     ref: ToolWithUI;
+    isBeta: boolean;
+    badgeLabel?: string;
   }>
 > {
   const tools = await loadAllTools();
 
-  const result: Array<{ id: string; label: string; ref: ToolWithUI }> = [];
+  const result: Array<{
+    id: string;
+    label: string;
+    ref: ToolWithUI;
+    isBeta: boolean;
+    badgeLabel?: string;
+  }> = [];
 
-  for (const [id, definition] of Object.entries(TOOL_DEFINITIONS)) {
+  const entries = Object.entries(TOOL_DEFINITIONS) as Array<[string, ToolDefinition]>;
+
+  for (const [id, definition] of entries) {
     const tool = tools[id];
     if (tool !== undefined) {
+      const isBeta = Boolean(definition.metadata.isBeta ?? tool.isBeta);
+      const badgeLabel = definition.metadata.badgeLabel ?? tool.badgeLabel;
       result.push({
         id,
         label: definition.label,
         ref: tool,
+        isBeta,
+        badgeLabel,
       });
     }
   }
@@ -421,18 +440,32 @@ export function getToolsForUISync(): Array<{
   id: string;
   label: string;
   ref: ToolWithUI;
+  isBeta: boolean;
+  badgeLabel?: string;
 }> {
   const tools = getAllToolsSync();
 
-  const result: Array<{ id: string; label: string; ref: ToolWithUI }> = [];
+  const result: Array<{
+    id: string;
+    label: string;
+    ref: ToolWithUI;
+    isBeta: boolean;
+    badgeLabel?: string;
+  }> = [];
 
-  for (const [id, definition] of Object.entries(TOOL_DEFINITIONS)) {
+  const entries = Object.entries(TOOL_DEFINITIONS) as Array<[string, ToolDefinition]>;
+
+  for (const [id, definition] of entries) {
     const tool = tools[id];
     if (tool !== undefined) {
+      const isBeta = Boolean(definition.metadata.isBeta ?? tool.isBeta);
+      const badgeLabel = definition.metadata.badgeLabel ?? tool.badgeLabel;
       result.push({
         id,
         label: definition.label,
         ref: tool,
+        isBeta,
+        badgeLabel,
       });
     }
   }

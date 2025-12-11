@@ -4,6 +4,7 @@ import { isMCPTool, multiMCPAdapter } from '@/lib/mcp/multi-mcp-adapter';
 import { convertToolsForAI } from '@/lib/tool-adapter';
 import {
   getToolLabel,
+  getToolMetadata,
   getToolsForUISync,
   isValidToolName as isValidToolNameFromTools,
   loadAllTools,
@@ -23,23 +24,34 @@ export { isValidToolName } from '@/lib/tools';
  */
 
 // Cache for tool registry
-let registryCache: Record<string, { ref: unknown; label: string }> | null = null;
+let registryCache: Record<
+  string,
+  { ref: unknown; label: string; isBeta?: boolean; badgeLabel?: string }
+> | null = null;
 
 /**
  * Get the tool registry (lazy-loaded and cached)
  */
-async function getToolRegistry(): Promise<Record<string, { ref: unknown; label: string }>> {
+async function getToolRegistry(): Promise<
+  Record<string, { ref: unknown; label: string; isBeta?: boolean; badgeLabel?: string }>
+> {
   if (registryCache) {
     return registryCache;
   }
 
   const tools = await loadAllTools();
-  const registry: Record<string, { ref: unknown; label: string }> = {};
+  const registry: Record<
+    string,
+    { ref: unknown; label: string; isBeta?: boolean; badgeLabel?: string }
+  > = {};
 
   for (const [toolName, toolRef] of Object.entries(tools)) {
+    const metadata = getToolMetadata(toolName);
     registry[toolName] = {
       ref: toolRef,
       label: getToolLabel(toolName),
+      isBeta: (toolRef as any)?.isBeta === true || metadata.isBeta === true,
+      badgeLabel: metadata.badgeLabel ?? (toolRef as any)?.badgeLabel,
     };
   }
 
@@ -52,7 +64,10 @@ async function getToolRegistry(): Promise<Record<string, { ref: unknown; label: 
  * NOTE: This will be empty until tools are loaded
  * Use restoreToolsFromConfig() for async access
  */
-export const TOOL_REGISTRY: Record<string, { ref: unknown; label: string }> = {};
+export const TOOL_REGISTRY: Record<
+  string,
+  { ref: unknown; label: string; isBeta?: boolean; badgeLabel?: string }
+> = {};
 
 /**
  * Converts a tools configuration (typically loaded from database JSON)
@@ -174,14 +189,22 @@ export async function getAvailableToolsForUI(): Promise<
     id: string;
     label: string;
     ref: unknown;
+    isBeta: boolean;
+    badgeLabel?: string;
   }>
 > {
   const registry = await getToolRegistry();
-  return Object.entries(registry).map(([id, { ref, label }]) => ({
-    id,
-    label,
-    ref,
-  }));
+  return Object.entries(registry).map(([id, { ref, label }]) => {
+    const isBeta = (ref as any)?.isBeta === true || registry[id]?.isBeta === true;
+    const badgeLabel = registry[id]?.badgeLabel ?? ((ref as any)?.badgeLabel as string | undefined);
+    return {
+      id,
+      label,
+      ref,
+      isBeta,
+      badgeLabel,
+    };
+  });
 }
 
 /**
@@ -192,6 +215,8 @@ export function getAvailableToolsForUISync(): Array<{
   id: string;
   label: string;
   ref: unknown;
+  isBeta: boolean;
+  badgeLabel?: string;
 }> {
   return getToolsForUISync();
 }

@@ -96,6 +96,7 @@ export class PlannerAgentV2 {
       hidden: false,
       isDefault: false,
       version: PlannerAgentV2.VERSION,
+      isBeta: true,
       systemPrompt: PlannerPrompt,
       tools: tools,
       dynamicPrompt: {

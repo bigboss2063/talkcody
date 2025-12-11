@@ -12,6 +12,8 @@ interface CreateToolOptions {
   renderToolResult: (result: any, params: any) => ReactElement;
   canConcurrent: boolean;
   hidden?: boolean;
+  isBeta?: boolean;
+  badgeLabel?: string;
 }
 
 export function createTool(options: CreateToolOptions): ToolWithUI {
@@ -24,6 +26,8 @@ export function createTool(options: CreateToolOptions): ToolWithUI {
     renderToolResult,
     canConcurrent,
     hidden,
+    isBeta,
+    badgeLabel,
   } = options;
 
   const executeDescriptor: TypedPropertyDescriptor<CreateToolOptions['execute']> = {
@@ -47,6 +51,14 @@ export function createTool(options: CreateToolOptions): ToolWithUI {
 
   if (hidden) {
     tool.hidden = hidden;
+  }
+
+  if (isBeta) {
+    tool.isBeta = true;
+  }
+
+  if (badgeLabel) {
+    tool.badgeLabel = badgeLabel;
   }
 
   return tool;

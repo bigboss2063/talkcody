@@ -1,5 +1,6 @@
 // src/components/selectors/agent-selector.tsx
 import { useEffect, useMemo, useState } from 'react';
+import { BetaBadge } from '@/components/beta-badge';
 import { useUiNavigation } from '@/contexts/ui-navigation';
 import { useAppSettings } from '@/hooks/use-settings';
 import { logger } from '@/lib/logger';
@@ -63,7 +64,12 @@ export function AgentSelector({ disabled = false }: AgentSelectorProps) {
       ...agents.map((agent) => ({
         value: agent.id,
         label: agent.name,
-        content: <div className="flex items-center gap-2 text-xs">{agent.name}</div>,
+        content: (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="truncate">{agent.name}</span>
+            {agent.isBeta && <BetaBadge />}
+          </div>
+        ),
       })),
       {
         value: '__manage__',

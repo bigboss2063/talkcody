@@ -6,6 +6,7 @@ import { getToolMetadata } from '@/lib/tools';
 import type { Tracer } from '@/lib/tracer';
 import { decodeObjectHtmlEntities, generateId } from '@/lib/utils';
 import type { AgentLoopState, UIMessage } from '@/types/agent';
+import type { ToolInput } from '@/types/tool';
 import {
   type ExecutionGroup,
   type ExecutionStage,
@@ -291,7 +292,7 @@ export class ToolExecutor {
                 type: 'tool-call',
                 toolCallId: toolCall.toolCallId,
                 toolName: toolCall.toolName,
-                input: toolArgs,
+                input: toolArgs as ToolInput,
               },
             ],
             timestamp: new Date(),
@@ -334,7 +335,7 @@ export class ToolExecutor {
                 type: 'tool-result',
                 toolCallId: toolCall.toolCallId,
                 toolName: toolCall.toolName,
-                input: toolArgs,
+                input: toolArgs as ToolInput,
                 output: toolResult,
               },
             ],

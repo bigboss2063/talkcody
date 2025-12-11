@@ -3,6 +3,7 @@
 import { Check, ExternalLink, RotateCcw, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { BetaBadge } from '@/components/beta-badge';
 import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -96,6 +97,7 @@ export function ToolSelectorButton() {
       id: tool.id,
       label: tool.label,
       type: 'built-in' as const,
+      isBeta: tool.isBeta,
     }));
   }, [builtInTools]);
 
@@ -249,7 +251,10 @@ export function ToolSelectorButton() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{tool.label}</div>
+                        <div className="font-medium text-sm truncate flex items-center gap-2">
+                          <span className="truncate">{tool.label}</span>
+                          {tool.isBeta && <BetaBadge className="scale-90" />}
+                        </div>
                       </div>
 
                       <div className="text-xs text-muted-foreground">{t.Chat.tools.builtIn}</div>

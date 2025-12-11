@@ -328,7 +328,7 @@ export class ToolDependencyAnalyzer {
       }
     };
 
-    addTargets(metadata.getTargetFile?.(toolCall.input));
+    addTargets(metadata.getTargetFile?.(toolCall.input as Record<string, unknown>));
     const inputTargets = (toolCall.input as { targets?: unknown })?.targets;
     addTargets(
       Array.isArray(inputTargets)

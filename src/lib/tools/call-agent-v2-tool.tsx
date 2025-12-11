@@ -103,6 +103,7 @@ export const callAgentV2 = createTool({
       ),
   }),
   canConcurrent: true,
+  isBeta: true,
   execute: async ({
     agentId,
     task,

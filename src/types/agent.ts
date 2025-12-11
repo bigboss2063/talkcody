@@ -126,4 +126,5 @@ export interface AgentDefinition {
   version?: string; // version number for system agents (e.g., "2.1.0")
   dynamicPrompt?: DynamicPromptConfig;
   defaultSkills?: string[]; // array of skill IDs
+  isBeta?: boolean; // if true, show beta badge in UI
 }

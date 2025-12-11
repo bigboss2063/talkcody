@@ -117,7 +117,7 @@ class AgentRegistry {
     logger.info(`loadPersistentAgents: Loaded ${dbAgents.length} user agents from database`);
   }
 
-  private async buildPlannerTools(useCallAgentV2 = false): Promise<Record<string, unknown>> {
+  private async buildPlannerTools(useCallAgentV2 = false): Promise<ToolSet> {
     try {
       const { mergeWithMCPTools } = await import('@/lib/mcp/multi-mcp-adapter');
       const { getTool } = await import('@/lib/tools');
@@ -138,7 +138,7 @@ class AgentRegistry {
       const exitPlanMode = await getTool('exitPlanMode');
       const askUserQuestions = await getTool('askUserQuestions');
 
-      return await mergeWithMCPTools({
+      return (await mergeWithMCPTools({
         bash,
         callAgent,
         readFile,
@@ -151,7 +151,7 @@ class AgentRegistry {
         getSkill,
         exitPlanMode,
         askUserQuestions,
-      });
+      })) as ToolSet;
     } catch (error) {
       logger.error('buildPlannerTools: Failed to load MCP tools, using local tools only:', error);
 
@@ -187,7 +187,7 @@ class AgentRegistry {
         getSkill,
         exitPlanMode,
         askUserQuestions,
-      };
+      } as ToolSet;
     }
   }
 
