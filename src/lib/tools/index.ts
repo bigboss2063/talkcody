@@ -11,7 +11,7 @@
 
 import type { ToolWithUI } from '@/types/tool';
 import { logger } from '../logger';
-
+import { registerToolUIRenderers } from '../tool-adapter';
 // Import all tools explicitly to avoid dynamic import issues
 import { askUserQuestionsTool } from './ask-user-questions-tool';
 import { bashTool } from './bash-tool';
@@ -290,6 +290,9 @@ export async function loadAllTools(): Promise<Record<string, ToolWithUI>> {
           logger.error(`Tool "${toolName}" not found in definition`);
           continue;
         }
+
+        // Ensure UI renderers are registered even if agents are not yet converted
+        registerToolUIRenderers(tool, toolName);
 
         tools[toolName] = tool;
       } catch (error) {

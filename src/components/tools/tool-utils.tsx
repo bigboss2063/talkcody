@@ -1,5 +1,5 @@
 import { Wrench } from 'lucide-react';
-import type { UIMessage } from '@/types/agent';
+import type { ToolMessageContent, UIMessage } from '@/types/agent';
 
 const MAX_TOOL_DETAIL_LENGTH = 100;
 
@@ -90,27 +90,25 @@ export function renderNestedToolsList(
 ) {
   if (nestedTools.length === 0) return null;
 
+  const toolContent = nestedTools.flatMap((msg) =>
+    Array.isArray(msg.content) ? (msg.content as ToolMessageContent[]) : []
+  );
+
+  const toolCalls = toolContent.filter(
+    (content): content is ToolMessageContent & { type: 'tool-call' } => content.type === 'tool-call'
+  );
+
+  if (toolCalls.length === 0) return null;
+
   const pendingColor = options?.pendingColor || 'purple';
   const completedColor = options?.completedColor || 'green';
-
-  // Collect all tool-call messages
-  const toolCalls = nestedTools.filter(
-    (msg) =>
-      msg.role === 'tool' &&
-      Array.isArray(msg.content) &&
-      msg.content.some((c) => c.type === 'tool-call')
-  );
-
-  // Collect all tool-result messages
-  const toolResults = nestedTools.filter(
-    (msg) => msg.role === 'tool' && Array.isArray(msg.content)
-  );
-
   // Get set of completed tool call IDs
   const resultToolCallIds = new Set(
-    toolResults.flatMap((msg) =>
-      Array.isArray(msg.content) ? msg.content.map((c) => c.toolCallId) : []
-    )
+    toolContent
+      .filter((content): content is ToolMessageContent & { type: 'tool-result' } => {
+        return content.type === 'tool-result';
+      })
+      .map((content) => content.toolCallId)
   );
 
   return (
@@ -120,12 +118,7 @@ export function renderNestedToolsList(
         <span className="text-sm font-medium">Agent is using tools:</span>
       </div>
       <div className="space-y-1 mt-2">
-        {toolCalls.map((msg) => {
-          const toolCall = Array.isArray(msg.content)
-            ? msg.content.find((c) => c.type === 'tool-call')
-            : null;
-          if (!toolCall) return null;
-
+        {toolCalls.map((toolCall) => {
           const isCompleted = resultToolCallIds.has(toolCall.toolCallId);
           const toolDetails = formatToolDetails(toolCall.toolName, toolCall.input);
 
