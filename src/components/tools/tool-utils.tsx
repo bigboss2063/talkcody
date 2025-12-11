@@ -117,7 +117,7 @@ export function renderNestedToolsList(
         <Wrench className="h-4 w-4" />
         <span className="text-sm font-medium">Agent is using tools:</span>
       </div>
-      <div className="space-y-1 mt-2">
+      <div className="space-y-1 mt-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
         {toolCalls.map((toolCall) => {
           const isCompleted = resultToolCallIds.has(toolCall.toolCallId);
           const toolDetails = formatToolDetails(toolCall.toolName, toolCall.input);
