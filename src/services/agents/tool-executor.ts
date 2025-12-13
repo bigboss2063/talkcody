@@ -552,7 +552,9 @@ export class ToolExecutor {
         break;
       }
 
-      onStatus?.(`Processing tool ${toolCall.toolName}`);
+      const { getToolLabel } = await import('@/lib/tools');
+      const toolLabel = getToolLabel(toolCall.toolName);
+      onStatus?.(`Processing tool ${toolLabel}`);
       const result = await this.executeToolCall(toolCall, options);
       results.push({ toolCall, result });
     }
