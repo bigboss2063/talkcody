@@ -209,12 +209,10 @@ function createStreamFetch(): TauriFetchFunction {
     }
 
     // Process a single stream event
-    let chunkCount = 0;
     const processEvent = (payload: StreamEvent) => {
       const { chunk, status } = payload || {};
 
       if (chunk) {
-        chunkCount++;
         resetStreamTimeout();
         writer.ready.then(() => {
           writer.write(new Uint8Array(chunk)).catch((e) => {
@@ -222,8 +220,6 @@ function createStreamFetch(): TauriFetchFunction {
           });
         });
       } else if (status === 0) {
-        // End of stream
-        logger.info(`[Tauri Stream Fetch] Stream ended (total chunks: ${chunkCount})`);
         close();
       }
     };

@@ -408,11 +408,13 @@ pub async fn stream_fetch(
     })?;
 
     let status = response.status().as_u16();
-    log::info!(
-        "Stream fetch response status: {} (request_id: {})",
-        status,
-        request_id
-    );
+    if status != 200 {
+        log::error!(
+            "Stream fetch response error: status {} (request_id: {})",
+            status,
+            request_id
+        );
+    }
 
     // Extract headers
     let mut headers = HashMap::new();

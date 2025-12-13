@@ -30,6 +30,26 @@ lazy_static::lazy_static! {
 fn get_default_shell() -> String {
     #[cfg(target_os = "windows")]
     {
+        // Prefer PowerShell over cmd.exe for better experience
+        // Check for PowerShell Core (pwsh) first, then Windows PowerShell
+        if std::process::Command::new("pwsh")
+            .arg("--version")
+            .output()
+            .is_ok()
+        {
+            info!("Detected PowerShell Core (pwsh)");
+            return "pwsh".to_string();
+        }
+        if std::process::Command::new("powershell")
+            .arg("-Version")
+            .output()
+            .is_ok()
+        {
+            info!("Detected Windows PowerShell");
+            return "powershell".to_string();
+        }
+        // Fallback to cmd.exe
+        info!("Falling back to cmd.exe");
         std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
     }
     #[cfg(not(target_os = "windows"))]
@@ -60,11 +80,24 @@ pub async fn pty_spawn(
         .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
     let shell = get_default_shell();
+    info!("Spawning shell: {}", shell);
     let mut cmd = CommandBuilder::new(&shell);
 
     // Set working directory if provided
-    if let Some(cwd_path) = cwd {
+    if let Some(ref cwd_path) = cwd {
+        info!("Setting working directory: {}", cwd_path);
         cmd.cwd(cwd_path);
+    }
+
+    // For Windows shells, add appropriate arguments
+    #[cfg(target_os = "windows")]
+    {
+        if shell.contains("pwsh") || shell.contains("powershell") {
+            // PowerShell: disable logo banner, keep session open
+            cmd.args(&["-NoLogo", "-NoExit"]);
+            info!("Added PowerShell args: -NoLogo -NoExit");
+        }
+        // cmd.exe doesn't need special arguments
     }
 
     // For Unix shells, use login shell to load environment
@@ -82,7 +115,12 @@ pub async fn pty_spawn(
     let child = pair
         .slave
         .spawn_command(cmd)
-        .map_err(|e| format!("Failed to spawn shell: {}", e))?;
+        .map_err(|e| {
+            error!("Failed to spawn shell '{}': {}", shell, e);
+            format!("Failed to spawn shell: {}", e)
+        })?;
+
+    info!("Shell spawned successfully");
 
     let pty_id = uuid::Uuid::new_v4().to_string();
     let writer = pair.master.take_writer().map_err(|e| format!("Failed to take writer: {}", e))?;
@@ -102,12 +140,14 @@ pub async fn pty_spawn(
     // Spawn a task to read output
     let pty_id_clone = pty_id.clone();
     let app_clone = app.clone();
+    info!("Starting PTY read loop for {}", pty_id);
     tokio::spawn(async move {
         let mut buffer = [0u8; 8192];
+        info!("PTY {} read loop started", pty_id_clone);
         loop {
             match reader.read(&mut buffer) {
                 Ok(0) => {
-                    info!("PTY {} closed", pty_id_clone);
+                    info!("PTY {} closed (read returned 0)", pty_id_clone);
                     // PTY closed
                     let _ = app_clone.emit(
                         "pty-output",
@@ -120,13 +160,17 @@ pub async fn pty_spawn(
                 }
                 Ok(n) => {
                     let data = String::from_utf8_lossy(&buffer[..n]).to_string();
-                    let _ = app_clone.emit(
+                    info!("PTY {} read {} bytes", pty_id_clone, n);
+                    let emit_result = app_clone.emit(
                         "pty-output",
                         PtyOutput {
                             pty_id: pty_id_clone.clone(),
                             data,
                         },
                     );
+                    if let Err(e) = emit_result {
+                        error!("Failed to emit pty-output event: {}", e);
+                    }
                 }
                 Err(e) => {
                     error!("Error reading from PTY {}: {}", pty_id_clone, e);
@@ -154,19 +198,28 @@ pub async fn pty_spawn(
 
 #[tauri::command]
 pub fn pty_write(pty_id: String, data: String) -> Result<(), String> {
+    info!("pty_write called: pty_id={}, data_len={}", pty_id, data.len());
     let mut sessions = PTY_SESSIONS.lock().unwrap();
 
     if let Some(session) = sessions.get_mut(&pty_id) {
         session
             .writer
             .write_all(data.as_bytes())
-            .map_err(|e| format!("Failed to write to PTY: {}", e))?;
+            .map_err(|e| {
+                error!("Failed to write to PTY {}: {}", pty_id, e);
+                format!("Failed to write to PTY: {}", e)
+            })?;
         session
             .writer
             .flush()
-            .map_err(|e| format!("Failed to flush PTY: {}", e))?;
+            .map_err(|e| {
+                error!("Failed to flush PTY {}: {}", pty_id, e);
+                format!("Failed to flush PTY: {}", e)
+            })?;
+        info!("pty_write successful for {}", pty_id);
         Ok(())
     } else {
+        error!("PTY session {} not found", pty_id);
         Err(format!("PTY session {} not found", pty_id))
     }
 }
