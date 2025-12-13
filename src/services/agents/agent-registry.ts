@@ -8,6 +8,7 @@ import type { AgentDefinition, DynamicPromptConfig } from '@/types/agent';
 import { agentDatabaseService } from '../agent-database-service';
 import { agentService } from '../database/agent-service';
 import type { Agent, CreateAgentData, UpdateAgentData } from '../database/types';
+import { filterToolSetForAgent, isToolAllowedForAgent } from './agent-tool-access';
 import { getToolByName, restoreToolsFromConfig } from './tool-registry';
 
 class AgentRegistry {
@@ -15,6 +16,16 @@ class AgentRegistry {
   private persistentAgents = new Map<string, AgentDefinition>(); // User agents (loaded from database)
   private systemAgentEnabledState = new Map<string, boolean>(); // Track enabled state for system agents
   private loaded = false;
+
+  private enforceRestrictedTools(agent: AgentDefinition): AgentDefinition {
+    if (!agent.tools || Object.keys(agent.tools).length === 0) return agent;
+
+    const { tools, removedToolIds } = filterToolSetForAgent(agent.id, agent.tools);
+    if (removedToolIds.length === 0) return agent;
+
+    logger.warn(`Removed restricted tools from agent '${agent.id}':`, removedToolIds);
+    return { ...agent, tools: tools as ToolSet };
+  }
 
   async loadAllAgents(): Promise<void> {
     const totalAgents = this.systemAgents.size + this.persistentAgents.size;
@@ -140,7 +151,7 @@ class AgentRegistry {
 
       return (await mergeWithMCPTools({
         bash,
-        callAgent,
+        [callAgentToolName]: callAgent,
         readFile,
         codeSearch,
         glob,
@@ -176,7 +187,7 @@ class AgentRegistry {
 
       return {
         bash,
-        callAgent,
+        [callAgentToolName]: callAgent,
         readFile,
         codeSearch,
         glob,
@@ -438,6 +449,13 @@ class AgentRegistry {
 
     // Add tools that are in the addedTools set
     for (const toolId of override.addedTools) {
+      if (!isToolAllowedForAgent(agent.id, toolId)) {
+        logger.warn(
+          `Cannot apply override: tool '${toolId}' is not allowed for agent '${agent.id}'`
+        );
+        continue;
+      }
+
       // Get tool from new registry
       const tool = await getToolByName(toolId);
       if (tool) {
@@ -484,6 +502,9 @@ class AgentRegistry {
       logger.debug(`Applied tool overrides for agent '${id}'`);
     }
 
+    // Enforce tool access rules (defense-in-depth)
+    agent = this.enforceRestrictedTools(agent);
+
     // Step 2: Resolve model type to concrete model
     let resolvedModel: string;
     try {
@@ -528,6 +549,15 @@ class AgentRegistry {
       // );
     } catch (error) {
       logger.error(`Failed to restore tools for agent ${dbAgent.id}:`, error);
+    }
+
+    const filtered = filterToolSetForAgent(dbAgent.id, tools);
+    if (filtered.removedToolIds.length > 0) {
+      tools = filtered.tools as ToolSet;
+      logger.warn(
+        `dbAgentToDefinition: Removed restricted tools from agent '${dbAgent.id}':`,
+        filtered.removedToolIds
+      );
     }
 
     // Parse dynamic prompt config (safe defaults)

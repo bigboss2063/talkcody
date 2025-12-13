@@ -6,6 +6,7 @@ import { BuiltInToolsSelector } from './built-in-tools-selector';
 vi.mock('@/services/agents/tool-registry', () => ({
   getAvailableToolsForUI: vi.fn(() => [
     { id: 'bashTool', label: 'Bash', ref: {} },
+    { id: 'callAgentV2', label: 'Call Agent v2', ref: {} },
     { id: 'codeSearch', label: 'Code Search', ref: {} },
     { id: 'editFile', label: 'Edit File', ref: {} },
     { id: 'readFile', label: 'Read File', ref: {} },
@@ -13,6 +14,7 @@ vi.mock('@/services/agents/tool-registry', () => ({
   ]),
   getAvailableToolsForUISync: vi.fn(() => [
     { id: 'bashTool', label: 'Bash', ref: {} },
+    { id: 'callAgentV2', label: 'Call Agent v2', ref: {} },
     { id: 'codeSearch', label: 'Code Search', ref: {} },
     { id: 'editFile', label: 'Edit File', ref: {} },
     { id: 'readFile', label: 'Read File', ref: {} },
@@ -155,5 +157,20 @@ describe('BuiltInToolsSelector Component', () => {
     // First call should have 4 tools selected (one removed)
     const firstCall = mockOnToolsChange.mock.calls[0][0];
     expect(firstCall).toHaveLength(4);
+  });
+
+  it('should show callAgentV2 only for planner-v2', () => {
+    const { rerender } = render(
+      <BuiltInToolsSelector selectedTools={[]} onToolsChange={mockOnToolsChange} />
+    );
+
+    expect(screen.queryByText('Call Agent v2')).not.toBeInTheDocument();
+
+    rerender(
+      <BuiltInToolsSelector agentId="planner-v2" selectedTools={[]} onToolsChange={mockOnToolsChange} />
+    );
+
+    expect(screen.getByText('Call Agent v2')).toBeInTheDocument();
+    expect(screen.getByText('0/6 selected')).toBeInTheDocument();
   });
 });

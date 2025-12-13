@@ -3,14 +3,20 @@ import { useMemo } from 'react';
 import { BetaBadge } from '@/components/beta-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { isToolAllowedForAgent } from '@/services/agents/agent-tool-access';
 import { getAvailableToolsForUISync } from '@/services/agents/tool-registry';
 
 interface BuiltInToolsSelectorProps {
+  agentId?: string;
   selectedTools: string[];
   onToolsChange: (tools: string[]) => void;
 }
 
-export function BuiltInToolsSelector({ selectedTools, onToolsChange }: BuiltInToolsSelectorProps) {
+export function BuiltInToolsSelector({
+  agentId,
+  selectedTools,
+  onToolsChange,
+}: BuiltInToolsSelectorProps) {
   const builtInTools = useMemo(() => getAvailableToolsForUISync(), []);
 
   const handleToolToggle = (toolId: string, checked: boolean) => {
@@ -27,10 +33,11 @@ export function BuiltInToolsSelector({ selectedTools, onToolsChange }: BuiltInTo
   const visibleTools = useMemo(
     () =>
       builtInTools.filter((tool) => {
+        if (!isToolAllowedForAgent(agentId, tool.id)) return false;
         const ref = tool.ref as any;
         return !ref.hidden;
       }),
-    [builtInTools]
+    [builtInTools, agentId]
   );
 
   const selectedCount = useMemo(

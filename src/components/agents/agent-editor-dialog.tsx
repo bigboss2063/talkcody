@@ -259,6 +259,7 @@ export function AgentEditorDialog({
               <div className="space-y-4">
                 <Label>{t.Agents.tools.available}</Label>
                 <BuiltInToolsSelector
+                  agentId={agent?.id}
                   selectedTools={selectedTools}
                   onToolsChange={setSelectedTools}
                 />

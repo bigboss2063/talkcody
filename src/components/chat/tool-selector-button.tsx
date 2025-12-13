@@ -12,6 +12,7 @@ import { useLocale } from '@/hooks/use-locale';
 import { useAppSettings } from '@/hooks/use-settings';
 import { getDocLinks } from '@/lib/doc-links';
 import { logger } from '@/lib/logger';
+import { isToolAllowedForAgent } from '@/services/agents/agent-tool-access';
 import { getAvailableToolsForUISync } from '@/services/agents/tool-registry';
 import { useAgentStore } from '@/stores/agent-store';
 import { useToolOverrideStore } from '@/stores/tool-override-store';
@@ -56,6 +57,7 @@ export function ToolSelectorButton() {
       const allTools = getAvailableToolsForUISync();
       // Filter out hidden tools
       return allTools.filter((tool) => {
+        if (!isToolAllowedForAgent(currentAgent?.id, tool.id)) return false;
         const ref = tool.ref as { hidden?: boolean };
         return !ref.hidden;
       });
@@ -63,7 +65,7 @@ export function ToolSelectorButton() {
       logger.error('Failed to get built-in tools:', error);
       return [];
     }
-  }, [toolsLoaded]);
+  }, [toolsLoaded, currentAgent?.id]);
 
   // Subscribe to tool overrides
   const toolOverrides = useToolOverrideStore((state) => state.overrides);

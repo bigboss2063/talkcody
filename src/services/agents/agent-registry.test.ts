@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createTool } from '@/lib/create-tool';
 import { getToolUIRenderers } from '@/lib/tool-adapter';
+import { useToolOverrideStore } from '@/stores/tool-override-store';
 import type { AgentDefinition } from '@/types/agent';
 import { agentRegistry } from './agent-registry';
 
@@ -37,6 +38,7 @@ describe('Agent Registry - Tool UI Renderer Registration', () => {
   beforeEach(() => {
     // Reset the registry before each test
     agentRegistry.reset();
+    useToolOverrideStore.getState().clearAll();
   });
 
   it('should register UI renderers for tools when agent is registered', async () => {
@@ -193,6 +195,7 @@ describe('Agent Registry - Auto-load Behavior', () => {
   beforeEach(() => {
     // Reset the registry before each test to simulate uninitialized state
     agentRegistry.reset();
+    useToolOverrideStore.getState().clearAll();
   });
 
   it('should auto-load agents when get() is called before loadAllAgents()', async () => {
@@ -253,5 +256,21 @@ describe('Agent Registry - Auto-load Behavior', () => {
     expect(results[0]?.id).toBe('planner');
     expect(results[1]?.id).toBe('general');
     expect(results[2]?.id).toBe('planner');
+  });
+});
+
+describe('Agent Registry - Tool Access Restrictions', () => {
+  beforeEach(() => {
+    agentRegistry.reset();
+    useToolOverrideStore.getState().clearAll();
+  });
+
+  it('should prevent callAgentV2 on non planner-v2 agents', async () => {
+    useToolOverrideStore.getState().addTool('planner', 'callAgentV2');
+
+    const agent = await agentRegistry.getWithResolvedTools('planner');
+    expect(agent).toBeDefined();
+    expect(agent?.tools).toBeDefined();
+    expect(Object.keys(agent?.tools || {})).not.toContain('callAgentV2');
   });
 });

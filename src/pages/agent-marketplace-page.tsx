@@ -36,6 +36,7 @@ import { useUnifiedAgents } from '@/hooks/use-unified-agents';
 import { getDocLinks } from '@/lib/doc-links';
 import { logger } from '@/lib/logger';
 import { agentRegistry } from '@/services/agents/agent-registry';
+import { isToolAllowedForAgent } from '@/services/agents/agent-tool-access';
 import { forkAgent } from '@/services/agents/fork-agent';
 import { getAvailableToolsForUISync } from '@/services/agents/tool-registry';
 import { agentService } from '@/services/database/agent-service';
@@ -228,6 +229,7 @@ export function AgentMarketplacePage() {
         // biome-ignore lint/suspicious/noExplicitAny: Tools are dynamically built with refs of various types
         const tools: Record<string, any> = {};
         for (const t of agentData.selectedTools) {
+          if (!isToolAllowedForAgent(agentData.id, t)) continue;
           const match = availableTools.find((x) => x.id === t);
           if (match) {
             tools[t] = match.ref;
