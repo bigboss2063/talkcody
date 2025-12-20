@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { isAbsolute, join } from '@tauri-apps/api/path';
 import { logger } from '@/lib/logger';
 import { isPathWithinProjectDirectory } from '@/lib/utils/path-security';
+import { taskFileService } from '@/services/task-file-service';
 import { getEffectiveWorkspaceRoot } from '@/services/workspace-root-service';
 
 // Result from Rust backend execute_user_shell command
@@ -18,12 +19,16 @@ export interface BashResult {
   success: boolean;
   message: string;
   command: string;
-  output?: string;
-  error?: string;
+  output?: string; // Short output (inline return)
+  outputFile?: string; // Output file path (used when > 100 lines)
+  error?: string; // Short error message
+  errorFile?: string; // Error output file path (used when > 100 lines)
   exit_code?: number;
   timed_out?: boolean;
   idle_timed_out?: boolean;
   pid?: number | null;
+  taskId?: string; // Background task ID if running in background
+  isBackground?: boolean; // Whether command is running in background
 }
 
 // List of dangerous command patterns that should be blocked
@@ -139,57 +144,6 @@ const DANGEROUS_COMMANDS = [
   'shred',
   'truncate',
 ];
-
-// Commands where output IS the result - need full output
-const OUTPUT_IS_RESULT_PATTERNS = [
-  /^git\s+(status|log|diff|show|branch|remote|config|rev-parse|ls-files|blame|describe|tag)/,
-  /^(ls|dir|find|tree|exa|lsd)\b/,
-  /^(cat|head|tail|grep|rg|ag|ack|sed|awk)\b/,
-  /^(curl|wget|http|httpie)\b/,
-  /^(echo|printf)\b/,
-  /^(pwd|whoami|hostname|uname|id|groups)\b/,
-  /^(env|printenv|set)\b/,
-  /^(which|where|type|command)\b/,
-  /^(jq|yq|xq)\b/, // JSON/YAML processors
-  /^(wc|sort|uniq|cut|tr|column)\b/, // Text processing
-  /^(date|cal|uptime)\b/,
-  /^(df|du|free|top|ps|lsof)\b/, // System info
-  /^(npm\s+(list|ls|outdated|view|info|search))\b/,
-  /^(yarn\s+(list|info|why))\b/,
-  /^(bun\s+(pm\s+ls|pm\s+cache))\b/,
-  /^(cargo\s+(tree|metadata|search))\b/,
-  /^(pip\s+(list|show|freeze))\b/,
-  /^(docker\s+(ps|images|inspect|logs))\b/,
-];
-
-// Build/test commands - minimal output on success
-const BUILD_TEST_PATTERNS = [
-  /^(npm|yarn|pnpm|bun)\s+(run\s+)?(test|build|lint|check|typecheck|tsc|compile)/,
-  /^(cargo|rustc)\s+(test|build|check|clippy)/,
-  /^(go)\s+(test|build|vet)/,
-  /^(pytest|jest|vitest|mocha|ava|tap)\b/,
-  /^(make|cmake|ninja)\b/,
-  /^(tsc|eslint|prettier|biome)\b/,
-  /^(gradle|mvn|ant)\b/,
-  /^(dotnet)\s+(build|test|run)/,
-];
-
-type OutputStrategy = 'full' | 'minimal' | 'default';
-
-/**
- * Determine output strategy based on command type
- */
-function getOutputStrategy(command: string): OutputStrategy {
-  const trimmedCommand = command.trim();
-
-  if (OUTPUT_IS_RESULT_PATTERNS.some((re) => re.test(trimmedCommand))) {
-    return 'full';
-  }
-  if (BUILD_TEST_PATTERNS.some((re) => re.test(trimmedCommand))) {
-    return 'minimal';
-  }
-  return 'default';
-}
 
 /**
  * BashExecutor - handles bash command execution with safety checks
@@ -418,8 +372,9 @@ export class BashExecutor {
    * Execute a bash command safely
    * @param command - The bash command to execute
    * @param taskId - The task ID for workspace root resolution
+   * @param toolUseId - Optional tool use ID for output file naming
    */
-  async execute(command: string, taskId: string): Promise<BashResult> {
+  async execute(command: string, taskId: string, toolId: string): Promise<BashResult> {
     try {
       // Safety check
       const dangerCheck = this.isDangerousCommand(command);
@@ -457,7 +412,12 @@ export class BashExecutor {
       const result = await this.executeCommand(command, rootPath || null);
       this.logger.info('Command result:', result);
 
-      return this.formatResult(result, command);
+      // Generate tool use ID if not provided or empty
+      const effectiveToolUseId = toolId?.trim()
+        ? toolId.trim()
+        : `bash_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      return this.formatResult(result, command, taskId, effectiveToolUseId);
     } catch (error) {
       return this.handleError(error, command);
     }
@@ -486,63 +446,45 @@ export class BashExecutor {
 
   /**
    * Format execution result
-   * Optimizes output based on command type:
-   * - 'full': Commands where output IS the result (git, ls, cat, etc.) - return all output (up to 500 lines)
-   * - 'minimal': Build/test commands - on success return minimal confirmation, on failure return full error
-   * - 'default': Other commands - return last 30 lines on success
+   * - Output > 100 lines: write to file, return file path
+   * - Output <= 100 lines: return inline (truncated to 1000 lines as safety)
    */
-  private formatResult(result: TauriShellResult, command: string): BashResult {
-    // Success determination:
-    // - If idle_timed_out, we consider it a success (process is still running in background)
-    // - If timed_out (max timeout), it's a warning but could still be considered success
-    // - Otherwise, command is successful only if exit code is 0
+  private async formatResult(
+    result: TauriShellResult,
+    command: string,
+    taskId: string,
+    toolUseId: string
+  ): Promise<BashResult> {
     const isSuccess = result.idle_timed_out || result.timed_out || result.code === 0;
-    const strategy = getOutputStrategy(command);
 
     let message: string;
     let output: string | undefined;
+    let outputFile: string | undefined;
     let error: string | undefined;
+    let errorFile: string | undefined;
 
     if (result.idle_timed_out) {
       message = `Command running in background (idle timeout after 5s). PID: ${result.pid ?? 'unknown'}`;
-      output = this.truncateOutput(result.stdout, 100);
-      error = result.stderr || undefined;
     } else if (result.timed_out) {
       message = `Command timed out after max timeout. PID: ${result.pid ?? 'unknown'}`;
-      output = this.truncateOutput(result.stdout, 100);
-      error = result.stderr || undefined;
     } else if (result.code === 0) {
-      // Success handling based on strategy
       message = 'Command executed successfully';
-
-      switch (strategy) {
-        case 'full':
-          // Output IS the result - return full output (up to 500 lines)
-          output = this.truncateOutput(result.stdout, 1000);
-          break;
-        case 'minimal':
-          // Build/test success - minimal output
-          output = result.stdout.trim() ? '(output truncated on success)' : undefined;
-          break;
-        default:
-          // Default: return last 500 lines
-          output = this.truncateOutput(result.stdout, 1000);
-          break;
-      }
-      error = result.stderr || undefined;
     } else {
-      // Failure: always show full error information regardless of strategy
       message = `Command failed with exit code ${result.code}`;
-      if (result.stderr?.trim()) {
-        error = result.stderr;
-        // Also include stdout if it contains useful info
-        if (result.stdout.trim()) {
-          output = this.truncateOutput(result.stdout, 50);
-        }
-      } else {
-        output = this.truncateOutput(result.stdout, 50);
-        error = undefined;
-      }
+    }
+
+    // Process stdout
+    if (result.stdout?.trim()) {
+      const processed = await this.processOutput(result.stdout, taskId, toolUseId, 'stdout');
+      output = processed.inline;
+      outputFile = processed.file;
+    }
+
+    // Process stderr
+    if (result.stderr?.trim()) {
+      const processed = await this.processOutput(result.stderr, taskId, toolUseId, 'error');
+      error = processed.inline;
+      errorFile = processed.file;
     }
 
     return {
@@ -550,12 +492,40 @@ export class BashExecutor {
       command,
       message,
       output,
+      outputFile,
       error,
+      errorFile,
       exit_code: result.code,
       timed_out: result.timed_out,
       idle_timed_out: result.idle_timed_out,
       pid: result.pid,
     };
+  }
+
+  /**
+   * Process output: write to file if large, otherwise return inline
+   */
+  private async processOutput(
+    content: string,
+    taskId: string,
+    toolUseId: string,
+    type: 'stdout' | 'error'
+  ): Promise<{ inline?: string; file?: string }> {
+    if (!content.trim()) {
+      return {};
+    }
+
+    if (this.shouldWriteToFile(content)) {
+      try {
+        const filePath = await taskFileService.saveOutput(taskId, toolUseId, content, type);
+        return { file: filePath };
+      } catch (fileError) {
+        this.logger.error(`Failed to write ${type} to file, keeping inline:`, fileError);
+        return { inline: this.truncateOutput(content, 1000) };
+      }
+    }
+
+    return { inline: this.truncateOutput(content, 1000) };
   }
 
   /**
@@ -573,6 +543,25 @@ export class BashExecutor {
   }
 
   /**
+   * Count the number of lines in text (optimized to avoid large array allocation)
+   */
+  private countLines(text: string): number {
+    if (!text.trim()) return 0;
+    let count = 1;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '\n') count++;
+    }
+    return count;
+  }
+
+  /**
+   * Check if text should be written to file based on line count
+   */
+  private shouldWriteToFile(text: string): boolean {
+    return this.countLines(text) > 100;
+  }
+
+  /**
    * Handle execution errors
    */
   private handleError(error: unknown, command: string): BashResult {
@@ -583,6 +572,82 @@ export class BashExecutor {
       message: 'Error executing bash command',
       error: error instanceof Error ? error.message : String(error),
     };
+  }
+
+  /**
+   * Execute a bash command in the background
+   * @param command - The bash command to execute
+   * @param taskId - The task ID for workspace root resolution
+   * @param toolId - Optional tool use ID for output file naming
+   * @param maxTimeoutMs - Optional timeout in milliseconds (default: 2 hours)
+   */
+  async executeInBackground(
+    command: string,
+    taskId: string,
+    toolId: string,
+    maxTimeoutMs?: number
+  ): Promise<BashResult> {
+    try {
+      // Safety check
+      const dangerCheck = this.isDangerousCommand(command);
+      if (dangerCheck.dangerous) {
+        this.logger.warn('Blocked dangerous command:', command);
+        return {
+          success: false,
+          command,
+          message: `Command blocked: ${dangerCheck.reason}`,
+          error: dangerCheck.reason,
+        };
+      }
+
+      this.logger.info('Executing background bash command:', command);
+      const rootPath = await getEffectiveWorkspaceRoot(taskId);
+
+      // Validate rm command paths
+      const rmValidation = await this.validateRmCommand(command, rootPath || null);
+      if (!rmValidation.allowed) {
+        this.logger.warn('Blocked rm command:', command, rmValidation.reason);
+        return {
+          success: false,
+          command,
+          message: `Command blocked: ${rmValidation.reason}`,
+          error: rmValidation.reason,
+        };
+      }
+
+      // Import the background task store dynamically to avoid circular dependency
+      const { useBackgroundTaskStore } = await import('@/stores/background-task-store');
+
+      // Generate effective tool use ID
+      const effectiveToolUseId = toolId?.trim()
+        ? toolId.trim()
+        : `bash_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      // Spawn the background task
+      const taskIdResult = await useBackgroundTaskStore
+        .getState()
+        .spawnTask(command, taskId, effectiveToolUseId, rootPath || undefined, maxTimeoutMs);
+
+      this.logger.info('Background task spawned:', taskIdResult);
+
+      return {
+        success: true,
+        command,
+        message: `Command started in background (Task ID: ${taskIdResult})`,
+        pid: undefined, // Will be available after first status refresh
+        taskId: taskIdResult,
+        isBackground: true,
+      };
+    } catch (error) {
+      this.logger.error('Error executing background bash command:', error);
+      return {
+        success: false,
+        command,
+        message: 'Error executing background bash command',
+        error: error instanceof Error ? error.message : String(error),
+        isBackground: true,
+      };
+    }
   }
 }
 

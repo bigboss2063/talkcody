@@ -34,23 +34,44 @@ This tool allows you to run shell commands with built-in safety restrictions. Ch
 - Build tools (make, cargo, go)
 - Python (python, pip)
 
-The command will be executed in the current working directory.`,
+The command will be executed in the current working directory.
+
+**Background execution:**
+Use \`run_in_background: true\` to run long-running commands in the background. The command will continue running even if it produces no output for an extended period. Use this for:
+- Development servers
+- Long-running build processes
+- Continuous processes
+
+Output can be read using \`cat\` or \`tail -f\` on the output file path returned in the result.`,
   inputSchema: z.object({
     command: z.string().describe('The bash command to execute'),
+    runInBackground: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('Run command in background and return task ID'),
   }),
   canConcurrent: false,
-  execute: async ({ command }, context): Promise<BashResult> => {
-    return await bashExecutor.execute(command, context.taskId);
+  execute: async ({ command, runInBackground }, context): Promise<BashResult> => {
+    if (runInBackground) {
+      return await bashExecutor.executeInBackground(command, context.taskId, context.toolId);
+    }
+    return await bashExecutor.execute(command, context.taskId, context.toolId);
   },
   renderToolDoing: ({ command }) => <BashToolDoing command={command} />,
   renderToolResult: (result) => (
     <BashToolResult
-      output={result?.output || result?.error || ''}
+      output={result?.output}
+      outputFile={result?.outputFile}
+      error={result?.error}
+      errorFile={result?.errorFile}
       success={result?.success ?? false}
       exitCode={result?.exit_code}
       idleTimedOut={result?.idle_timed_out}
       timedOut={result?.timed_out}
       pid={result?.pid}
+      taskId={result?.taskId}
+      isBackground={result?.isBackground}
     />
   ),
 });

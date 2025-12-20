@@ -1104,6 +1104,558 @@ pub async fn code_nav_get_indexed_files(
     Ok(service.index.file_definitions.keys().cloned().collect())
 }
 
+// ============================================================================
+// Code Summarization for Message Compaction
+// ============================================================================
+
+/// Result of code summarization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodeSummary {
+    pub success: bool,
+    pub summary: String,
+    pub original_lines: usize,
+    pub lang_id: String,
+}
+
+/// Summarize code content using tree-sitter to extract only signatures and key definitions.
+/// This is used for message compaction to reduce token usage while preserving semantic information.
+///
+/// The summary includes:
+/// - Function/method signatures with their doc comments
+/// - Class/struct/interface/enum definitions (fields only, not method bodies)
+/// - Type aliases
+/// - Top-level constants
+#[tauri::command]
+pub async fn summarize_code_content(
+    content: String,
+    lang_id: String,
+    file_path: String,
+) -> Result<CodeSummary, String> {
+    let original_lines = content.lines().count();
+
+    // Get language, return unsupported error if language is not recognized
+    let language: Language = match lang_id.as_str() {
+        "python" => tree_sitter_python::LANGUAGE.into(),
+        "rust" => tree_sitter_rust::LANGUAGE.into(),
+        "go" => tree_sitter_go::LANGUAGE.into(),
+        "c" => tree_sitter_c::LANGUAGE.into(),
+        "cpp" => tree_sitter_cpp::LANGUAGE.into(),
+        "java" => tree_sitter_java::LANGUAGE.into(),
+        "typescript" | "javascript" | "tsx" | "jsx" => tree_sitter_typescript::LANGUAGE_TSX.into(),
+        _ => {
+            return Ok(CodeSummary {
+                success: false,
+                summary: content, // Return original for unsupported languages
+                original_lines,
+                lang_id,
+            });
+        }
+    };
+
+    let mut parser = Parser::new();
+    if parser.set_language(&language).is_err() {
+        return Err(format!("Failed to set language for {}", lang_id));
+    }
+
+    let tree = match parser.parse(&content, None) {
+        Some(t) => t,
+        None => return Err(format!("Failed to parse file: {}", file_path)),
+    };
+
+    let source_bytes = content.as_bytes();
+
+    // Get the summarization query for this language
+    let query_str = get_summarization_query(&lang_id);
+    if query_str.is_empty() {
+        return Ok(CodeSummary {
+            success: false,
+            summary: content,
+            original_lines,
+            lang_id,
+        });
+    }
+
+    let query = match Query::new(&language, query_str) {
+        Ok(q) => q,
+        Err(e) => return Err(format!("Failed to create summarization query: {:?}", e)),
+    };
+
+    // Collect all captured ranges with their types
+    let mut captures: Vec<CapturedSymbol> = Vec::new();
+    let mut cursor = QueryCursor::new();
+    let mut matches = cursor.matches(&query, tree.root_node(), source_bytes);
+
+    while let Some(m) = matches.next() {
+        for capture in m.captures {
+            let node = capture.node;
+            let capture_name = query.capture_names()[capture.index as usize];
+
+            // Get the full node text (for definitions, this includes the whole signature)
+            let text = match node.utf8_text(source_bytes) {
+                Ok(t) => t.to_string(),
+                Err(_) => continue,
+            };
+
+            captures.push(CapturedSymbol {
+                kind: capture_name.to_string(),
+                text,
+                start_line: node.start_position().row,
+                start_byte: node.start_byte(),
+            });
+        }
+    }
+
+    // Sort by start position
+    captures.sort_by_key(|c| c.start_byte);
+
+    // Build summary from captures
+    let summary = build_summary(&content, &captures, &lang_id, original_lines);
+
+    Ok(CodeSummary {
+        success: true,
+        summary,
+        original_lines,
+        lang_id,
+    })
+}
+
+#[derive(Debug)]
+struct CapturedSymbol {
+    kind: String,
+    text: String,
+    start_line: usize,
+    start_byte: usize,
+}
+
+/// Get tree-sitter query for extracting code signatures and definitions
+fn get_summarization_query(lang_id: &str) -> &'static str {
+    match lang_id {
+        "typescript" | "javascript" | "tsx" | "jsx" => {
+            r#"
+            ; Function declarations (capture full signature)
+            (function_declaration) @function
+
+            ; Arrow functions with const (top-level only)
+            (program (lexical_declaration
+              (variable_declarator
+                name: (identifier)
+                value: (arrow_function)))) @arrow_function
+
+            ; Exported arrow functions
+            (program (export_statement
+              (lexical_declaration
+                (variable_declarator
+                  name: (identifier)
+                  value: (arrow_function))))) @arrow_function
+
+            ; Class declarations
+            (class_declaration) @class
+
+            ; Interface declarations
+            (interface_declaration) @interface
+
+            ; Type alias declarations
+            (type_alias_declaration) @type_alias
+
+            ; Enum declarations
+            (enum_declaration) @enum
+
+            ; Top-level const declarations (non-function)
+            (program (lexical_declaration) @const_decl)
+
+            ; Exported const declarations
+            (program (export_statement (lexical_declaration)) @const_decl)
+            "#
+        }
+        "python" => {
+            r#"
+            ; Function definitions
+            (function_definition) @function
+
+            ; Class definitions
+            (class_definition) @class
+
+            ; Top-level assignments (constants)
+            (module (expression_statement (assignment))) @assignment
+            "#
+        }
+        "rust" => {
+            r#"
+            ; Function definitions
+            (function_item) @function
+
+            ; Struct definitions
+            (struct_item) @struct
+
+            ; Enum definitions
+            (enum_item) @enum
+
+            ; Trait definitions
+            (trait_item) @trait
+
+            ; Impl blocks
+            (impl_item) @impl
+
+            ; Type aliases
+            (type_item) @type_alias
+
+            ; Const items
+            (const_item) @const
+
+            ; Static items
+            (static_item) @static
+            "#
+        }
+        "go" => {
+            r#"
+            ; Function declarations
+            (function_declaration) @function
+
+            ; Method declarations
+            (method_declaration) @method
+
+            ; Type declarations
+            (type_declaration) @type_decl
+
+            ; Const declarations
+            (const_declaration) @const
+
+            ; Var declarations
+            (var_declaration) @var
+            "#
+        }
+        "java" => {
+            r#"
+            ; Class declarations
+            (class_declaration) @class
+
+            ; Interface declarations
+            (interface_declaration) @interface
+
+            ; Enum declarations
+            (enum_declaration) @enum
+
+            ; Method declarations (within class body)
+            (method_declaration) @method
+
+            ; Field declarations
+            (field_declaration) @field
+            "#
+        }
+        "c" | "cpp" => {
+            r#"
+            ; Function definitions
+            (function_definition) @function
+
+            ; Struct specifiers
+            (struct_specifier) @struct
+
+            ; Class specifiers (C++)
+            (class_specifier) @class
+
+            ; Enum specifiers
+            (enum_specifier) @enum
+
+            ; Type definitions
+            (type_definition) @typedef
+            "#
+        }
+        _ => "",
+    }
+}
+
+/// Build a human-readable summary from captured symbols
+fn build_summary(content: &str, captures: &[CapturedSymbol], lang_id: &str, original_lines: usize) -> String {
+    let mut result = format!(
+        "[COMPRESSED: Original {} lines → Summarized using tree-sitter]\n\n",
+        original_lines
+    );
+
+    let lines: Vec<&str> = content.lines().collect();
+
+    for capture in captures {
+        // Get the captured text
+        let text = &capture.text;
+
+        // For function/method bodies, we want to show only the signature
+        let summarized = match capture.kind.as_str() {
+            "function" | "method" | "arrow_function" => {
+                extract_function_signature(text, lang_id)
+            }
+            "class" => {
+                extract_class_summary(text, lang_id)
+            }
+            "impl" => {
+                extract_impl_summary(text)
+            }
+            "interface" | "type_alias" | "enum" | "struct" | "trait" | "type_decl" => {
+                // For types, keep as-is (they're usually not too long)
+                // But limit to reasonable size
+                limit_text(text, 30)
+            }
+            "const" | "static" | "const_decl" | "var" | "field" | "assignment" | "typedef" => {
+                // For constants, keep the first line
+                text.lines().next().unwrap_or(text).to_string()
+            }
+            _ => text.clone(),
+        };
+
+        // Add doc comment if available (look at lines before start_line)
+        let doc_comment = extract_doc_comment(&lines, capture.start_line, lang_id);
+        if !doc_comment.is_empty() {
+            result.push_str(&doc_comment);
+            result.push('\n');
+        }
+
+        result.push_str(&summarized);
+        result.push_str("\n\n");
+    }
+
+    result.trim_end().to_string()
+}
+
+/// Extract function signature without body
+fn extract_function_signature(text: &str, lang_id: &str) -> String {
+    match lang_id {
+        "typescript" | "javascript" | "tsx" | "jsx" => {
+            // Find the opening brace and truncate
+            if let Some(pos) = text.find('{') {
+                let sig = text[..pos].trim();
+                format!("{} {{ ... }}", sig)
+            } else if let Some(pos) = text.find("=>") {
+                // Arrow function
+                let sig = text[..pos + 2].trim();
+                format!("{} {{ ... }}", sig)
+            } else {
+                text.lines().next().unwrap_or(text).to_string()
+            }
+        }
+        "python" => {
+            // Find the colon and truncate
+            if let Some(pos) = text.find(':') {
+                let sig = text[..pos + 1].trim();
+                format!("{}\n    ...", sig)
+            } else {
+                text.lines().next().unwrap_or(text).to_string()
+            }
+        }
+        "rust" => {
+            // Find the opening brace and truncate
+            if let Some(pos) = text.find('{') {
+                let sig = text[..pos].trim();
+                format!("{} {{ ... }}", sig)
+            } else {
+                text.lines().next().unwrap_or(text).to_string()
+            }
+        }
+        "go" => {
+            // Find the opening brace
+            if let Some(pos) = text.find('{') {
+                let sig = text[..pos].trim();
+                format!("{} {{ ... }}", sig)
+            } else {
+                text.lines().next().unwrap_or(text).to_string()
+            }
+        }
+        "java" | "c" | "cpp" => {
+            // Find the opening brace
+            if let Some(pos) = text.find('{') {
+                let sig = text[..pos].trim();
+                format!("{} {{ ... }}", sig)
+            } else {
+                text.lines().next().unwrap_or(text).to_string()
+            }
+        }
+        _ => text.lines().next().unwrap_or(text).to_string(),
+    }
+}
+
+/// Extract class summary - signature + field names + method signatures
+fn extract_class_summary(text: &str, lang_id: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() {
+        return text.to_string();
+    }
+
+    let mut result = Vec::new();
+
+    match lang_id {
+        "typescript" | "javascript" | "tsx" | "jsx" => {
+            // First line is class declaration
+            result.push(lines[0].to_string());
+
+            for line in lines.iter().skip(1) {
+                let trimmed = line.trim();
+                // Include field declarations and method signatures
+                if trimmed.starts_with("private ")
+                    || trimmed.starts_with("public ")
+                    || trimmed.starts_with("protected ")
+                    || trimmed.starts_with("readonly ")
+                    || trimmed.starts_with("static ")
+                    || trimmed.starts_with("constructor")
+                    || trimmed.starts_with("async ")
+                    || (trimmed.contains('(') && trimmed.contains(')'))
+                {
+                    // It's a method or field, include signature
+                    if let Some(brace_pos) = line.find('{') {
+                        result.push(format!("{}{{ ... }}", &line[..brace_pos]));
+                    } else {
+                        result.push(line.to_string());
+                    }
+                }
+            }
+            result.push("}".to_string());
+        }
+        "python" => {
+            // Class definition line
+            result.push(lines[0].to_string());
+
+            for line in lines.iter().skip(1) {
+                let trimmed = line.trim();
+                // Include def lines (methods)
+                if trimmed.starts_with("def ") || trimmed.starts_with("async def ") {
+                    if let Some(colon_pos) = line.find(':') {
+                        result.push(format!("{}:\n        ...", &line[..colon_pos]));
+                    } else {
+                        result.push(line.to_string());
+                    }
+                } else if trimmed.starts_with("self.") && trimmed.contains('=') {
+                    // Field assignment in __init__
+                    result.push(format!("    {}", trimmed));
+                }
+            }
+        }
+        "java" => {
+            result.push(lines[0].to_string());
+
+            for line in lines.iter().skip(1) {
+                let trimmed = line.trim();
+                // Include field and method declarations
+                if trimmed.starts_with("private ")
+                    || trimmed.starts_with("public ")
+                    || trimmed.starts_with("protected ")
+                    || trimmed.starts_with("static ")
+                    || trimmed.starts_with("final ")
+                {
+                    if let Some(brace_pos) = line.find('{') {
+                        result.push(format!("{}{{ ... }}", &line[..brace_pos]));
+                    } else {
+                        result.push(line.to_string());
+                    }
+                }
+            }
+            result.push("}".to_string());
+        }
+        _ => {
+            // Default: just show first few lines
+            return limit_text(text, 20);
+        }
+    }
+
+    result.join("\n")
+}
+
+/// Extract impl block summary for Rust
+fn extract_impl_summary(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() {
+        return text.to_string();
+    }
+
+    let mut result = Vec::new();
+    result.push(lines[0].to_string()); // impl line
+
+    for line in lines.iter().skip(1) {
+        let trimmed = line.trim();
+        // Include fn signatures
+        if trimmed.starts_with("pub fn ")
+            || trimmed.starts_with("fn ")
+            || trimmed.starts_with("pub async fn ")
+            || trimmed.starts_with("async fn ")
+        {
+            if let Some(brace_pos) = line.find('{') {
+                result.push(format!("{}{{ ... }}", &line[..brace_pos]));
+            } else {
+                result.push(line.to_string());
+            }
+        }
+    }
+    result.push("}".to_string());
+
+    result.join("\n")
+}
+
+/// Extract doc comments before a definition
+fn extract_doc_comment(lines: &[&str], start_line: usize, lang_id: &str) -> String {
+    if start_line == 0 {
+        return String::new();
+    }
+
+    let mut doc_lines = Vec::new();
+    let mut line_idx = start_line - 1;
+
+    // Look backwards for doc comments
+    loop {
+        let line = lines.get(line_idx).unwrap_or(&"").trim();
+
+        let is_doc_comment = match lang_id {
+            "typescript" | "javascript" | "tsx" | "jsx" | "java" | "c" | "cpp" => {
+                line.starts_with("/**")
+                    || line.starts_with("*")
+                    || line.starts_with("//")
+                    || line.ends_with("*/")
+            }
+            "python" => {
+                line.starts_with("\"\"\"")
+                    || line.starts_with("'''")
+                    || line.starts_with("#")
+            }
+            "rust" => {
+                line.starts_with("///") || line.starts_with("//!")
+            }
+            "go" => {
+                line.starts_with("//")
+            }
+            _ => false,
+        };
+
+        if is_doc_comment {
+            doc_lines.push(line.to_string());
+            if line.starts_with("/**") || line.starts_with("\"\"\"") || line.starts_with("'''") {
+                break; // Start of block comment
+            }
+        } else if line.is_empty() {
+            // Allow one empty line
+            if !doc_lines.is_empty() {
+                break;
+            }
+        } else {
+            break;
+        }
+
+        if line_idx == 0 {
+            break;
+        }
+        line_idx -= 1;
+    }
+
+    doc_lines.reverse();
+    doc_lines.join("\n")
+}
+
+/// Limit text to a certain number of lines
+fn limit_text(text: &str, max_lines: usize) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.len() <= max_lines {
+        text.to_string()
+    } else {
+        let mut result: Vec<&str> = lines[..max_lines].to_vec();
+        result.push("    // ... (truncated)");
+        result.push("}");
+        result.join("\n")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1653,5 +2205,222 @@ interface MyInterface {
 
         // Hash should be 16 characters (8 bytes in hex)
         assert_eq!(hash1.len(), 16);
+    }
+
+    // ============================================================================
+    // Code Summarization Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_summarize_typescript_code() {
+        let ts_code = r#"
+/**
+ * A sample service for processing data
+ */
+export class DataProcessor {
+    private data: Map<string, number>;
+
+    constructor() {
+        this.data = new Map();
+    }
+
+    /**
+     * Process incoming data
+     * @param input The input to process
+     * @returns The processed result
+     */
+    async process(input: string): Promise<number> {
+        // Some long implementation
+        const result = input.length * 2;
+        for (let i = 0; i < 100; i++) {
+            console.log(i);
+        }
+        return result;
+    }
+
+    private helperMethod(): void {
+        console.log('helper');
+    }
+}
+
+interface DataInput {
+    id: string;
+    value: number;
+    timestamp: Date;
+}
+
+const MAX_SIZE = 1000;
+
+export function processAll(items: DataInput[]): void {
+    items.forEach(item => console.log(item));
+}
+"#;
+
+        let result = summarize_code_content(
+            ts_code.to_string(),
+            "typescript".to_string(),
+            "test.ts".to_string(),
+        )
+        .await
+        .unwrap();
+
+        assert!(result.success, "Should successfully summarize TypeScript code");
+        assert!(result.summary.contains("[COMPRESSED:"), "Should have compression marker");
+        assert!(result.summary.contains("DataProcessor"), "Should include class name");
+        assert!(result.summary.contains("process("), "Should include method signature");
+        assert!(result.summary.contains("DataInput"), "Should include interface");
+        assert!(result.summary.contains("MAX_SIZE"), "Should include const");
+        // Function body should be replaced with { ... }
+        assert!(result.summary.contains("{ ... }"), "Function bodies should be summarized");
+    }
+
+    #[tokio::test]
+    async fn test_summarize_rust_code() {
+        let rust_code = r#"
+/// A struct for holding configuration
+pub struct Config {
+    pub name: String,
+    pub value: i32,
+}
+
+impl Config {
+    /// Create a new config
+    pub fn new(name: String, value: i32) -> Self {
+        Self { name, value }
+    }
+
+    pub fn process(&self) -> String {
+        format!("{}: {}", self.name, self.value)
+    }
+}
+
+/// Process data with the given config
+pub fn process_data(config: &Config) -> Result<(), String> {
+    // Long implementation
+    println!("Processing...");
+    Ok(())
+}
+
+const MAX_RETRIES: u32 = 3;
+"#;
+
+        let result = summarize_code_content(
+            rust_code.to_string(),
+            "rust".to_string(),
+            "test.rs".to_string(),
+        )
+        .await
+        .unwrap();
+
+        assert!(result.success, "Should successfully summarize Rust code");
+        assert!(result.summary.contains("Config"), "Should include struct name");
+        assert!(result.summary.contains("process_data"), "Should include function name");
+        assert!(result.summary.contains("MAX_RETRIES"), "Should include const");
+    }
+
+    #[tokio::test]
+    async fn test_summarize_python_code() {
+        let python_code = r#"
+"""A module for data processing."""
+
+class DataProcessor:
+    """Processes data efficiently."""
+
+    def __init__(self, config: dict):
+        self.config = config
+        self.data = []
+
+    def process(self, input_data: list) -> list:
+        """Process the input data."""
+        result = []
+        for item in input_data:
+            result.append(item * 2)
+        return result
+
+def helper_function(x: int) -> int:
+    """A helper function."""
+    return x + 1
+
+MAX_SIZE = 1000
+"#;
+
+        let result = summarize_code_content(
+            python_code.to_string(),
+            "python".to_string(),
+            "test.py".to_string(),
+        )
+        .await
+        .unwrap();
+
+        assert!(result.success, "Should successfully summarize Python code");
+        assert!(result.summary.contains("DataProcessor"), "Should include class name");
+        assert!(result.summary.contains("process"), "Should include method name");
+        assert!(result.summary.contains("helper_function"), "Should include function name");
+    }
+
+    #[tokio::test]
+    async fn test_summarize_unsupported_language() {
+        let markdown_code = r#"
+# Header
+
+Some text content.
+
+- Item 1
+- Item 2
+"#;
+
+        let result = summarize_code_content(
+            markdown_code.to_string(),
+            "markdown".to_string(),
+            "test.md".to_string(),
+        )
+        .await
+        .unwrap();
+
+        // Should return success=false but not error, keeping original content
+        assert!(!result.success, "Should indicate unsupported language");
+        assert_eq!(result.summary, markdown_code, "Should return original content for unsupported language");
+    }
+
+    #[tokio::test]
+    async fn test_summarize_go_code() {
+        let go_code = r#"
+package main
+
+// Config holds configuration values
+type Config struct {
+    Name  string
+    Value int
+}
+
+// NewConfig creates a new Config
+func NewConfig(name string, value int) *Config {
+    return &Config{
+        Name:  name,
+        Value: value,
+    }
+}
+
+// Process handles the main logic
+func (c *Config) Process() error {
+    fmt.Println(c.Name)
+    return nil
+}
+
+const MaxRetries = 3
+"#;
+
+        let result = summarize_code_content(
+            go_code.to_string(),
+            "go".to_string(),
+            "main.go".to_string(),
+        )
+        .await
+        .unwrap();
+
+        assert!(result.success, "Should successfully summarize Go code");
+        assert!(result.summary.contains("Config"), "Should include type name");
+        assert!(result.summary.contains("NewConfig"), "Should include function name");
+        assert!(result.summary.contains("Process"), "Should include method name");
     }
 }

@@ -72,7 +72,7 @@ export class LLMService {
       enabled: true,
       preserveRecentMessages: 6,
       compressionModel: modelTypeService.resolveModelTypeSync(ModelType.MESSAGE_COMPACTION),
-      compressionThreshold: 0.9,
+      compressionThreshold: 0.8,
     };
   }
 
@@ -158,6 +158,8 @@ export class LLMService {
           ...this.getDefaultCompressionConfig(),
           ...compression,
         };
+
+        const totalStartTime = Date.now();
 
         logger.info('Starting agent loop with model', {
           model,
@@ -385,6 +387,18 @@ export class LLMService {
                   const requestDuration = Date.now() - requestStartTime;
 
                   if (totalUsage?.totalTokens) {
+                    // Check if token count increased significantly
+                    if (loopState.lastRequestTokens > 0) {
+                      const tokenIncrease = totalUsage.totalTokens - loopState.lastRequestTokens;
+                      if (tokenIncrease > 10000) {
+                        logger.warn('Token count increased significantly', {
+                          currentTokens: totalUsage.totalTokens,
+                          previousTokens: loopState.lastRequestTokens,
+                          increase: tokenIncrease,
+                          iteration: loopState.currentIteration,
+                        });
+                      }
+                    }
                     loopState.lastRequestTokens = totalUsage.totalTokens;
                   }
 
@@ -795,9 +809,12 @@ export class LLMService {
           }
         }
 
+        const totalDuration = Date.now() - totalStartTime;
         logger.info('Agent loop completed', {
           totalIterations: loopState.currentIteration,
           finalFinishReason: loopState.lastFinishReason,
+          totalDurationMs: totalDuration,
+          totalDurationSeconds: (totalDuration / 1000).toFixed(2),
         });
         const fullText = streamProcessor.getFullText();
         onComplete?.(fullText);

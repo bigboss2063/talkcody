@@ -149,3 +149,99 @@ export async function deleteIndex(rootPath: string): Promise<void> {
 export async function getIndexedFiles(): Promise<string[]> {
   return invoke('code_nav_get_indexed_files');
 }
+
+// ============================================================================
+// Code Summarization for Message Compaction
+// ============================================================================
+
+/**
+ * Result of code summarization
+ */
+export interface CodeSummary {
+  success: boolean;
+  summary: string;
+  original_lines: number;
+  lang_id: string;
+}
+
+/**
+ * Summarize code content using tree-sitter to extract only signatures and key definitions.
+ * This is used for message compaction to reduce token usage while preserving semantic information.
+ *
+ * The summary includes:
+ * - Function/method signatures with their doc comments
+ * - Class/struct/interface/enum definitions (fields only, not method bodies)
+ * - Type aliases
+ * - Top-level constants
+ *
+ * @param content - The code content to summarize
+ * @param langId - Language identifier (e.g., 'typescript', 'python', 'rust')
+ * @param filePath - File path for error messages
+ * @returns CodeSummary with success=true if summarized, success=false if unsupported language
+ */
+export async function summarizeCodeContent(
+  content: string,
+  langId: string,
+  filePath: string
+): Promise<CodeSummary> {
+  return invoke('summarize_code_content', { content, langId, filePath });
+}
+
+// ============================================================================
+// Token Estimation for Message Compaction
+// ============================================================================
+
+/**
+ * Estimate token count using character-based heuristics.
+ * - CJK characters: 1 char ≈ 1 token
+ * - Other characters: 4 chars ≈ 1 token
+ *
+ * This is used to quickly check if tree-sitter compression has reduced
+ * tokens enough to skip AI-based compression.
+ *
+ * @param text - The text to estimate tokens for
+ * @returns Estimated token count
+ */
+export async function estimateTokens(text: string): Promise<number> {
+  return invoke('estimate_tokens', { text });
+}
+
+/**
+ * Get language ID from file extension
+ */
+export function getLangIdFromPath(filePath: string): string | null {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  if (!ext) return null;
+
+  switch (ext) {
+    case 'py':
+      return 'python';
+    case 'rs':
+      return 'rust';
+    case 'go':
+      return 'go';
+    case 'c':
+    case 'h':
+      return 'c';
+    case 'cpp':
+    case 'cc':
+    case 'cxx':
+    case 'hpp':
+    case 'hxx':
+      return 'cpp';
+    case 'java':
+      return 'java';
+    case 'ts':
+      return 'typescript';
+    case 'tsx':
+      return 'tsx';
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+      return 'javascript';
+    case 'jsx':
+      return 'jsx';
+    default:
+      return null;
+  }
+}

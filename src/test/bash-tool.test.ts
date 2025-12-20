@@ -32,6 +32,17 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
+// Mock taskFileService
+const { mockSaveOutput } = vi.hoisted(() => ({
+  mockSaveOutput: vi.fn(),
+}));
+
+vi.mock('@/services/task-file-service', () => ({
+  taskFileService: {
+    saveOutput: mockSaveOutput,
+  },
+}));
+
 import { describe, expect, it, beforeEach } from 'vitest';
 import { type BashResult, bashTool } from '../lib/tools/bash-tool';
 
@@ -40,8 +51,8 @@ const _dummyToolCallOptions = {
   messages: [],
 };
 
-// Context required by execute function
-const testContext = { taskId: 'test-task-id' };
+// Context required by execute function (now includes toolId)
+const testContext = { taskId: 'test-task-id', toolId: 'tool-call-123' };
 
 // Helper to create a mock shell result
 function createMockShellResult(overrides: {
@@ -395,6 +406,119 @@ describe('bashTool', () => {
       expect(result.success).toBe(true);
       expect(result.idle_timed_out).toBe(true);
       expect(result.error).toBe('Warning: deprecated feature used');
+    });
+  });
+
+  describe('large output file handling', () => {
+    beforeEach(() => {
+      mockInvoke.mockClear();
+      mockSaveOutput.mockClear();
+    });
+
+    it('should pass toolId to bash executor', async () => {
+      mockInvoke.mockResolvedValue(createMockShellResult({
+        code: 0,
+        stdout: 'test output',
+      }));
+
+      const contextWithToolId = { taskId: 'test-task-id', toolId: 'specific-tool-call-id' };
+
+      if (!bashTool.execute) {
+        throw new Error('bashTool.execute is not defined');
+      }
+      const result = (await bashTool.execute({ command: 'echo test' }, contextWithToolId)) as BashResult;
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should return outputFile for large stdout', async () => {
+      const largeOutput = Array.from({ length: 150 }, (_, i) => `Line ${i + 1}`).join('\n');
+      mockInvoke.mockResolvedValue(createMockShellResult({
+        code: 0,
+        stdout: largeOutput,
+      }));
+      mockSaveOutput.mockResolvedValue('/test/root/.talkcody/output/task-123/tool-456_stdout.log');
+
+      if (!bashTool.execute) {
+        throw new Error('bashTool.execute is not defined');
+      }
+      const result = (await bashTool.execute(
+        { command: 'generate-large-output' },
+        { taskId: 'task-123', toolId: 'tool-456' }
+      )) as BashResult;
+
+      expect(result.success).toBe(true);
+      expect(result.outputFile).toBe('/test/root/.talkcody/output/task-123/tool-456_stdout.log');
+      expect(result.output).toBeUndefined();
+    });
+
+    it('should return errorFile for large stderr', async () => {
+      const largeError = Array.from({ length: 150 }, (_, i) => `Error ${i + 1}: Something failed`).join('\n');
+      mockInvoke.mockResolvedValue(createMockShellResult({
+        code: 1,
+        stderr: largeError,
+      }));
+      mockSaveOutput.mockResolvedValue('/test/root/.talkcody/output/task-123/tool-456_error.log');
+
+      if (!bashTool.execute) {
+        throw new Error('bashTool.execute is not defined');
+      }
+      const result = (await bashTool.execute(
+        { command: 'npm run build' },
+        { taskId: 'task-123', toolId: 'tool-456' }
+      )) as BashResult;
+
+      expect(result.success).toBe(false);
+      expect(result.errorFile).toBe('/test/root/.talkcody/output/task-123/tool-456_error.log');
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle both outputFile and errorFile', async () => {
+      const largeOutput = Array.from({ length: 120 }, (_, i) => `Out ${i + 1}`).join('\n');
+      const largeError = Array.from({ length: 110 }, (_, i) => `Err ${i + 1}`).join('\n');
+      mockInvoke.mockResolvedValue(createMockShellResult({
+        code: 1,
+        stdout: largeOutput,
+        stderr: largeError,
+      }));
+      mockSaveOutput
+        .mockResolvedValueOnce('/test/root/.talkcody/output/task-123/tool-456_stdout.log')
+        .mockResolvedValueOnce('/test/root/.talkcody/output/task-123/tool-456_error.log');
+
+      if (!bashTool.execute) {
+        throw new Error('bashTool.execute is not defined');
+      }
+      const result = (await bashTool.execute(
+        { command: 'npm run build' },
+        { taskId: 'task-123', toolId: 'tool-456' }
+      )) as BashResult;
+
+      expect(result.success).toBe(false);
+      expect(result.outputFile).toBe('/test/root/.talkcody/output/task-123/tool-456_stdout.log');
+      expect(result.errorFile).toBe('/test/root/.talkcody/output/task-123/tool-456_error.log');
+    });
+
+    it('should render outputFile in BashToolResult', async () => {
+      // This test verifies that the tool passes outputFile to the result renderer
+      const largeOutput = Array.from({ length: 150 }, (_, i) => `Line ${i + 1}`).join('\n');
+      mockInvoke.mockResolvedValue(createMockShellResult({
+        code: 0,
+        stdout: largeOutput,
+      }));
+      mockSaveOutput.mockResolvedValue('/test/root/.talkcody/output/task-123/tool-456_stdout.log');
+
+      if (!bashTool.execute) {
+        throw new Error('bashTool.execute is not defined');
+      }
+      const result = (await bashTool.execute(
+        { command: 'ls -la' },
+        { taskId: 'task-123', toolId: 'tool-456' }
+      )) as BashResult;
+
+      expect(result.success).toBe(true);
+      expect(result.outputFile).toBeDefined();
+      expect(result.outputFile).toContain('.talkcody/');
+      expect(result.outputFile).toContain('.log');
     });
   });
 });

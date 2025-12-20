@@ -74,23 +74,40 @@ export class ToolExecutor {
       return obj;
     }
 
+    // Fields known to be arrays/objects that LLM may return as stringified JSON
+    // Only parse these specific fields, NOT content fields like 'content', 'old_string', 'new_string'
+    const PARSE_JSON_FIELDS = [
+      'edits', // editFile
+      'file_types', // codeSearch
+      'targets', // callAgent
+      'todos', // todoWrite
+      'questions', // askUserQuestions
+      'options', // askUserQuestions (nested)
+      'args', // executeSkillScript
+      'environment', // executeSkillScript
+    ];
+
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       if (typeof value === 'string') {
-        // Check if the string looks like a JSON array or object
-        const trimmed = value.trim();
-        if (
-          (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
-          (trimmed.startsWith('{') && trimmed.endsWith('}'))
-        ) {
-          try {
-            result[key] = JSON.parse(value);
-            logger.info(`[ToolExecutor] Parsed JSON string for field '${key}'`, {
-              original: value,
-              parsed: result[key],
-            });
-          } catch (_error) {
-            // If parsing fails, keep as string
+        // Only parse fields in the allow list to avoid corrupting content fields
+        if (PARSE_JSON_FIELDS.includes(key)) {
+          const trimmed = value.trim();
+          if (
+            (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+            (trimmed.startsWith('{') && trimmed.endsWith('}'))
+          ) {
+            try {
+              result[key] = JSON.parse(value);
+              logger.info(`[ToolExecutor] Parsed JSON string for field '${key}'`, {
+                original: value,
+                parsed: result[key],
+              });
+            } catch (_error) {
+              // If parsing fails, keep as string
+              result[key] = value;
+            }
+          } else {
             result[key] = value;
           }
         } else {
@@ -417,7 +434,10 @@ export class ToolExecutor {
           );
         }
 
-        const toolResult = await this.executeTool(tool, toolArgs, { taskId: options.taskId });
+        const toolResult = await this.executeTool(tool, toolArgs, {
+          taskId: options.taskId,
+          toolId: toolCall.toolCallId,
+        });
         const toolDuration = Date.now() - toolStartTime;
 
         logger.info('Tool execution completed', {

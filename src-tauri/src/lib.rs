@@ -16,6 +16,7 @@ mod archive;
 mod code_navigation;
 mod analytics;
 mod lint;
+mod background_tasks;
 
 use file_watcher::FileWatcher;
 use window_manager::{WindowRegistry, WindowState, create_window};
@@ -616,6 +617,108 @@ fn extract_skill_tarball(request: ExtractTarballRequest) -> Result<ExtractTarbal
     archive::extract_tarball(request)
 }
 
+// ============================================================================
+// Token Estimation for Message Compaction
+// ============================================================================
+
+/// Estimate token count using character-based heuristics.
+/// - CJK characters: 1 char ≈ 1 token
+/// - Other characters: 4 chars ≈ 1 token
+/// This is used to quickly check if tree-sitter compression has reduced
+/// tokens enough to skip AI-based compression.
+#[tauri::command]
+fn estimate_tokens(text: String) -> usize {
+    let mut cjk_count = 0;
+    let mut other_count = 0;
+
+    for c in text.chars() {
+        if is_cjk_char(c) {
+            cjk_count += 1;
+        } else {
+            other_count += 1;
+        }
+    }
+
+    let other_tokens = if other_count > 0 {
+        (other_count / 4).max(1)
+    } else {
+        0
+    };
+
+    (cjk_count + other_tokens).max(1) // Ensure at least 1 token
+}
+
+/// Check if a character is CJK (Chinese, Japanese, Korean)
+#[inline]
+fn is_cjk_char(c: char) -> bool {
+    matches!(c,
+        '\u{4E00}'..='\u{9FFF}' |   // CJK Unified Ideographs
+        '\u{3400}'..='\u{4DBF}' |   // CJK Extension A
+        '\u{F900}'..='\u{FAFF}' |   // CJK Compatibility Ideographs
+        '\u{3040}'..='\u{309F}' |   // Hiragana
+        '\u{30A0}'..='\u{30FF}' |   // Katakana
+        '\u{AC00}'..='\u{D7AF}'     // Korean Hangul
+    )
+}
+
+#[cfg(test)]
+mod estimate_tokens_tests {
+    use super::*;
+
+    #[test]
+    fn test_english_text() {
+        // "Hello World" = 11 chars, ~3 tokens (11/4 = 2.75, rounded to 2, min 1)
+        let result = estimate_tokens("Hello World".to_string());
+        assert!(result > 0 && result < 11);
+    }
+
+    #[test]
+    fn test_cjk_text() {
+        // 5 Chinese characters = 5 tokens
+        let result = estimate_tokens("你好世界啊".to_string());
+        assert_eq!(result, 5);
+    }
+
+    #[test]
+    fn test_mixed_text() {
+        // "Hello 世界" = 6 English chars + 2 CJK chars
+        // Expected: 6/4 + 2 = 1 + 2 = 3 (with max(1))
+        let result = estimate_tokens("Hello 世界".to_string());
+        assert!(result >= 3 && result <= 5);
+    }
+
+    #[test]
+    fn test_empty_string() {
+        // Empty string should return min 1
+        let result = estimate_tokens("".to_string());
+        assert_eq!(result, 1);
+    }
+
+    #[test]
+    fn test_japanese_hiragana() {
+        // 3 hiragana characters = 3 tokens
+        let result = estimate_tokens("あいう".to_string());
+        assert_eq!(result, 3);
+    }
+
+    #[test]
+    fn test_korean_hangul() {
+        // 4 Korean characters = 4 tokens
+        let result = estimate_tokens("안녕하세".to_string());
+        assert_eq!(result, 4);
+    }
+
+    #[test]
+    fn test_long_english_text() {
+        // Long English text should estimate roughly 1 token per 4 chars
+        let text = "This is a long English text that should be tokenized properly for estimation purposes.";
+        let result = estimate_tokens(text.to_string());
+        let expected = text.len() / 4;
+        // Allow some margin
+        assert!(result >= expected - 5 && result <= expected + 5);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 /// Clean up old log files, keeping only logs from the last N days
 fn cleanup_old_logs(log_dir: &std::path::Path, days_to_keep: u64) {
@@ -851,9 +954,20 @@ pub fn run() {
             code_navigation::code_nav_get_index_metadata,
             code_navigation::code_nav_delete_index,
             code_navigation::code_nav_get_indexed_files,
+            // Code summarization for message compaction
+            code_navigation::summarize_code_content,
+            // Token estimation for message compaction
+            estimate_tokens,
             // Lint commands
             lint::run_lint,
             lint::check_lint_runtime,
+            // Background task commands
+            background_tasks::spawn_background_task,
+            background_tasks::get_background_task_status,
+            background_tasks::get_background_task_output,
+            background_tasks::kill_background_task,
+            background_tasks::list_background_tasks,
+            background_tasks::cleanup_background_tasks,
         ])
         .on_window_event(|window, event| {
             // Clean up resources when main window is destroyed

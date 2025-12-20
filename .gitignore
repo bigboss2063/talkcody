@@ -96,3 +96,6 @@ design/*
 
 # Vercel project config (contains project/org IDs)
 docs/.vercel/
+
+# TalkCody task outputs (large output files from tool execution)
+.talkcody/

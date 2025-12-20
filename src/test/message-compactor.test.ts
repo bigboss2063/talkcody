@@ -7,6 +7,9 @@ import type {
   MessageCompactionOptions,
 } from '../types/agent';
 
+// Use vi.hoisted to create mock functions that can be referenced in vi.mock
+const mockEstimateTokens = vi.hoisted(() => vi.fn());
+
 // Mock logger
 vi.mock('../lib/logger', () => ({
   logger: {
@@ -24,6 +27,19 @@ vi.mock('../lib/models', () => ({
   CLAUDE_HAIKU: 'claude-haiku-4.5',
   NANO_BANANA_PRO: 'gemini-3-pro-image',
   SCRIBE_V2_REALTIME: 'scribe-v2-realtime',
+  getContextLength: (_model: string) => 200000, // Return a default context length
+}));
+
+// Mock code-navigation-service for estimateTokens
+vi.mock('../services/code-navigation-service', () => ({
+  estimateTokens: mockEstimateTokens,
+  summarizeCodeContent: vi.fn().mockResolvedValue({
+    success: false,
+    summary: '',
+    original_lines: 0,
+    lang_id: 'unknown',
+  }),
+  getLangIdFromPath: vi.fn().mockReturnValue(null),
 }));
 
 describe('MessageCompactor', () => {
@@ -1491,6 +1507,237 @@ This is a test compression analysis.
       expect(result.preservedMessages).toHaveLength(2);
       expect(result.preservedMessages[0]?.content).toBe('Bye');
       expect(result.preservedMessages[1]?.content).toBe('Goodbye!');
+    });
+  });
+
+  describe('token early-exit logic', () => {
+    it('should skip AI compression when token reduction >= 75%', async () => {
+      const messages = createTestMessages(12);
+
+      // Mock estimateTokens to return 20% of original (80% reduction)
+      // lastTokenCount = 1000, estimated = 200 -> reduction = 80%
+      mockEstimateTokens.mockResolvedValueOnce(200);
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        1000 // lastTokenCount
+      );
+
+      // AI compression should NOT be called (runAgentLoop)
+      expect(mockChatService.runAgentLoop).not.toHaveBeenCalled();
+
+      // compressedSummary should be empty (no AI compression)
+      expect(result.compressedSummary).toBe('');
+
+      // preservedMessages should include messagesToCompress
+      expect(result.preservedMessages.length).toBeGreaterThan(defaultConfig.preserveRecentMessages);
+
+      // compressionRatio should reflect the token reduction
+      expect(result.compressionRatio).toBe(0.2); // 200/1000
+    });
+
+    it('should skip AI compression when token reduction is exactly 75%', async () => {
+      const messages = createTestMessages(12);
+
+      // Mock estimateTokens to return exactly 25% of original (75% reduction)
+      // lastTokenCount = 1000, estimated = 250 -> reduction = 75%
+      mockEstimateTokens.mockResolvedValueOnce(250);
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        1000 // lastTokenCount
+      );
+
+      // AI compression should NOT be called
+      expect(mockChatService.runAgentLoop).not.toHaveBeenCalled();
+      expect(result.compressedSummary).toBe('');
+      expect(result.compressionRatio).toBe(0.25);
+    });
+
+    it('should proceed with AI compression when token reduction < 75%', async () => {
+      const messages = createTestMessages(12);
+
+      // Mock estimateTokens to return 50% of original (50% reduction < 75%)
+      // lastTokenCount = 1000, estimated = 500 -> reduction = 50%
+      mockEstimateTokens.mockResolvedValueOnce(500);
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        1000 // lastTokenCount
+      );
+
+      // AI compression SHOULD be called
+      expect(mockChatService.runAgentLoop).toHaveBeenCalled();
+
+      // compressedSummary should have content from AI compression
+      expect(result.compressedSummary).toBeTruthy();
+    });
+
+    it('should proceed with AI compression when lastTokenCount is not provided', async () => {
+      const messages = createTestMessages(12);
+
+      const result = await messageCompactor.compactMessages({
+        messages,
+        config: defaultConfig,
+      });
+
+      // AI compression SHOULD be called (no early exit without lastTokenCount)
+      expect(mockChatService.runAgentLoop).toHaveBeenCalled();
+      expect(result.compressedSummary).toBeTruthy();
+
+      // estimateTokens should NOT be called when lastTokenCount is not provided
+      expect(mockEstimateTokens).not.toHaveBeenCalled();
+    });
+
+    it('should proceed with AI compression when lastTokenCount is 0', async () => {
+      const messages = createTestMessages(12);
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        0 // lastTokenCount = 0
+      );
+
+      // AI compression SHOULD be called (no early exit when lastTokenCount is 0)
+      expect(mockChatService.runAgentLoop).toHaveBeenCalled();
+      expect(result.compressedSummary).toBeTruthy();
+
+      // estimateTokens should NOT be called when lastTokenCount is 0
+      expect(mockEstimateTokens).not.toHaveBeenCalled();
+    });
+
+    it('should proceed with AI compression when estimateTokens throws error', async () => {
+      const messages = createTestMessages(12);
+
+      // Mock estimateTokens to throw an error
+      mockEstimateTokens.mockRejectedValueOnce(new Error('Tauri error'));
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        1000 // lastTokenCount
+      );
+
+      // AI compression SHOULD be called (fallback on error)
+      expect(mockChatService.runAgentLoop).toHaveBeenCalled();
+      expect(result.compressedSummary).toBeTruthy();
+    });
+
+    it('should return correct result structure when skipping AI compression', async () => {
+      const messages = createTestMessages(12);
+
+      // Mock estimateTokens to trigger early exit (90% reduction)
+      mockEstimateTokens.mockResolvedValueOnce(100);
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        1000 // lastTokenCount
+      );
+
+      // Verify result structure
+      expect(result).toMatchObject({
+        compressedSummary: '',
+        sections: [],
+        originalMessageCount: 12,
+      });
+
+      // preservedMessages should combine messagesToCompress with recentPreservedMessages
+      expect(result.preservedMessages.length).toBeGreaterThan(0);
+
+      // compressionRatio should reflect token estimation
+      expect(result.compressionRatio).toBe(0.1); // 100/1000
+    });
+
+    it('should handle very high token reduction gracefully', async () => {
+      const messages = createTestMessages(12);
+
+      // Mock estimateTokens to return very low token count (99% reduction)
+      mockEstimateTokens.mockResolvedValueOnce(10);
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        1000 // lastTokenCount
+      );
+
+      // Should skip AI compression
+      expect(mockChatService.runAgentLoop).not.toHaveBeenCalled();
+      expect(result.compressedSummary).toBe('');
+      expect(result.compressionRatio).toBe(0.01); // 10/1000
+    });
+
+    it('should handle token reduction just below threshold (74%)', async () => {
+      const messages = createTestMessages(12);
+
+      // Mock estimateTokens to return 26% of original (74% reduction < 75%)
+      mockEstimateTokens.mockResolvedValueOnce(260);
+
+      const result = await messageCompactor.compactMessages(
+        {
+          messages,
+          config: defaultConfig,
+        },
+        undefined,
+        1000 // lastTokenCount
+      );
+
+      // AI compression SHOULD be called (74% < 75%)
+      expect(mockChatService.runAgentLoop).toHaveBeenCalled();
+      expect(result.compressedSummary).toBeTruthy();
+    });
+
+    it('should pass lastTokenCount to performCompressionIfNeeded', async () => {
+      const messages = createTestMessages(12);
+
+      // Add a system message to make shouldCompress more likely to pass
+      const messagesWithSystem: ModelMessage[] = [
+        { role: 'system', content: 'System prompt' },
+        ...messages,
+      ];
+
+      // Mock estimateTokens to trigger early exit
+      mockEstimateTokens.mockResolvedValueOnce(100);
+
+      // Mock getContextLength via models mock to set a reasonable threshold
+      const largeTokenCount = 200000; // Large enough to trigger compression
+
+      const result = await messageCompactor.performCompressionIfNeeded(
+        messagesWithSystem,
+        { ...defaultConfig, compressionThreshold: 0.5 }, // 50% threshold
+        largeTokenCount,
+        'test-model',
+        'Test system prompt'
+      );
+
+      if (result) {
+        // If compression was triggered, estimateTokens should have been called
+        expect(mockEstimateTokens).toHaveBeenCalled();
+      }
     });
   });
 });

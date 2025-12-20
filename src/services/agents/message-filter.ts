@@ -2,6 +2,7 @@
 
 import type { ModelMessage, TextPart, ToolCallPart, ToolResultPart } from 'ai';
 import { logger } from '@/lib/logger';
+import { timedMethod } from '@/lib/timer';
 
 // Type for assistant message content parts
 type AssistantContentPart = TextPart | ToolCallPart;
@@ -21,6 +22,7 @@ export class MessageFilter {
    * Main filtering entry point
    * Applies all filtering optimizations to messages
    */
+  @timedMethod('MessageFilter.filterMessages')
   filterMessages(messages: ModelMessage[]): ModelMessage[] {
     const toolCallCount = this.countToolCalls(messages);
 

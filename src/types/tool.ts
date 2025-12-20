@@ -8,6 +8,7 @@ export type ToolOutput = unknown;
 // Context passed to tool execute function
 export interface ToolExecuteContext {
   taskId: string;
+  toolId: string;
 }
 
 // Context passed to tool rendering functions (subset of execute context)

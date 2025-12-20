@@ -1,5 +1,6 @@
 import type { ModelMessage } from 'ai';
 import { logger } from '@/lib/logger';
+import { timedMethod } from '@/lib/timer';
 import {
   mergeConsecutiveAssistantMessages,
   removeOrphanedToolMessages,
@@ -16,6 +17,8 @@ import type {
   UIMessage,
 } from '@/types/agent';
 import { MessageFilter } from './agents/message-filter';
+import { MessageRewriter } from './agents/message-rewriter';
+import { estimateTokens } from './code-navigation-service';
 
 export interface ValidationResult {
   valid: boolean;
@@ -33,10 +36,11 @@ export interface SelectMessagesToCompressResult {
 }
 
 export class MessageCompactor {
-  private readonly COMPRESSION_TIMEOUT_MS = 120000; // 30 seconds timeout
+  private readonly COMPRESSION_TIMEOUT_MS = 180000;
   private readonly MAX_SUMMARY_LENGTH = 8000; // Max chars for condensed summary
   private readonly PRESERVE_TOOL_NAMES = ['exitPlanMode', 'todoWrite'];
   private messageFilter: MessageFilter;
+  private messageRewriter: MessageRewriter;
   private compressionStats = {
     totalCompressions: 0,
     totalTimeSaved: 0,
@@ -72,6 +76,7 @@ Please be comprehensive and technical in your summary. Include specific file pat
     }
   ) {
     this.messageFilter = new MessageFilter();
+    this.messageRewriter = new MessageRewriter();
   }
 
   /**
@@ -310,9 +315,11 @@ Please be comprehensive and technical in your summary. Include specific file pat
     };
   }
 
+  @timedMethod('MessageCompactor.compactMessages')
   public async compactMessages(
     options: MessageCompactionOptions,
-    abortController?: AbortController
+    abortController?: AbortController,
+    lastTokenCount?: number // Original token count for early-exit check
   ): Promise<CompressionResult> {
     const { messages, config } = options;
 
@@ -322,10 +329,19 @@ Please be comprehensive and technical in your summary. Include specific file pat
     });
 
     // Use selectMessagesToCompress to determine which messages to compress and preserve
-    const { messagesToCompress, preservedMessages } = this.selectMessagesToCompress(
+    let { messagesToCompress, preservedMessages } = this.selectMessagesToCompress(
       messages,
       config.preserveRecentMessages
     );
+
+    // Apply tree-sitter based code summarization to reduce token usage
+    // This rewrites large file contents (>100 lines) to only include signatures and key definitions
+    try {
+      messagesToCompress = await this.messageRewriter.rewriteMessages(messagesToCompress);
+      logger.info('Applied message rewriting for code summarization');
+    } catch (error) {
+      logger.error('Failed to apply message rewriting, continuing with original messages:', error);
+    }
 
     if (messagesToCompress.length === 0) {
       logger.info('No messages to compress, returning original/preserved messages');
@@ -343,6 +359,47 @@ Please be comprehensive and technical in your summary. Include specific file pat
 
     // Convert messages to text for compression
     const conversationHistory = this.messagesToText(messagesToCompress);
+
+    // Check if tree-sitter rewriting has reduced tokens enough to skip AI compression
+    // If reduction >= 75%, we can skip the expensive AI compression step
+    if (lastTokenCount && lastTokenCount > 0) {
+      try {
+        const estimatedTokens = await estimateTokens(conversationHistory);
+        const reductionRatio = 1 - estimatedTokens / lastTokenCount;
+
+        if (reductionRatio >= 0.75) {
+          logger.info(
+            `Token reduction ${(reductionRatio * 100).toFixed(1)}% >= 75%, skipping AI compression`,
+            {
+              originalTokens: lastTokenCount,
+              estimatedTokens,
+              reductionRatio,
+            }
+          );
+
+          // Return early without AI compression
+          return {
+            compressedSummary: '',
+            sections: [],
+            preservedMessages: [...messagesToCompress, ...preservedMessages],
+            originalMessageCount: messages.length,
+            compressedMessageCount: messagesToCompress.length + preservedMessages.length,
+            compressionRatio: estimatedTokens / lastTokenCount,
+          };
+        }
+
+        logger.info(
+          `Token reduction ${(reductionRatio * 100).toFixed(1)}% < 75%, proceeding with AI compression`,
+          {
+            originalTokens: lastTokenCount,
+            estimatedTokens,
+            reductionRatio,
+          }
+        );
+      } catch (error) {
+        logger.warn('Failed to estimate tokens, proceeding with AI compression:', error);
+      }
+    }
 
     // Perform compression using the configured model
     const compressedSummary = await this.performCompression(
@@ -760,7 +817,8 @@ Please provide a comprehensive structured summary following the 8-section format
         config,
         systemPrompt,
       },
-      abortController
+      abortController,
+      lastTokenCount // Pass for early-exit token check
     );
 
     // Create compressed messages
