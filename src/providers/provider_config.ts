@@ -10,6 +10,8 @@ import { CLAUDE_OAUTH_BETA_HEADERS } from '@/services/claude-oauth-service';
 import type { ProviderRegistry } from '@/types';
 import { createTalkCodyProvider } from './talkcody-provider';
 
+type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 /**
  * Create a custom fetch function for Claude OAuth that:
  * 1. Adds Authorization: Bearer header
@@ -17,7 +19,7 @@ import { createTalkCodyProvider } from './talkcody-provider';
  * 3. Adds OAuth beta headers
  * 4. Adds Claude Code User-Agent header (required for OAuth)
  */
-function createClaudeOAuthFetch(accessToken: string): typeof fetch {
+function createClaudeOAuthFetch(accessToken: string): FetchFn {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const headers = new Headers(init?.headers);
 
@@ -47,7 +49,7 @@ function createClaudeOAuthFetch(accessToken: string): typeof fetch {
 export function createAnthropicOAuthProvider(accessToken: string) {
   return createAnthropic({
     apiKey: 'oauth-placeholder', // SDK requires this but we override with Bearer token
-    fetch: createClaudeOAuthFetch(accessToken) as typeof fetch,
+    fetch: createClaudeOAuthFetch(accessToken) as FetchFn,
   });
 }
 
