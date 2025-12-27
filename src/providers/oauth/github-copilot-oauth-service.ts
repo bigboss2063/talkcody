@@ -7,6 +7,8 @@ import { createGitHubCopilotOpenAICompatible } from '@opeoginni/github-copilot-o
 import { logger } from '@/lib/logger';
 import { simpleFetch } from '@/lib/tauri-fetch';
 
+type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 // OAuth constants from SST opencode-copilot-auth
 const CLIENT_ID = 'Iv1.b507a08c87ecfe98';
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
@@ -491,7 +493,7 @@ export function getClientId(): string {
  * Create a custom fetch function that handles token refresh
  * This is used by the github-copilot-openai-compatible provider
  */
-export function createGitHubCopilotFetch(enterpriseUrl?: string): typeof fetch {
+export function createGitHubCopilotFetch(enterpriseUrl?: string): FetchFn {
   // Return a fetch function that dynamically gets the token
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     // Dynamic import to avoid circular dependencies
