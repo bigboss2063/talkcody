@@ -77,7 +77,9 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            jq
+            jq \
+            ibus-gtk3 \
+            fcitx5-frontend-gtk3
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
