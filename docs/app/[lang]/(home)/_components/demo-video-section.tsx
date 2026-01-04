@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+const VIDEO_URL = "https://cdn.talkcody.com/images/TalkCody.mp4";
 
 const translations = {
   en: {
@@ -29,25 +29,17 @@ export function DemoVideoSection({ lang }: { lang: string }) {
 
             {/* Inner Content */}
             <div className="relative rounded-2xl bg-black overflow-hidden border border-zinc-800/50 shadow-2xl shadow-black">
-              {/* Video Placeholder */}
-              <div className="aspect-video flex items-center justify-center bg-zinc-950 relative group cursor-pointer">
-                {/* Subtle Grid Background */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:40px_40px]" />
-
-                {/* Play Button */}
-                <div className="relative z-10 w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform duration-300">
-                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                    <Play
-                      className="w-6 h-6 text-black ml-1"
-                      fill="currentColor"
-                    />
-                  </div>
-                </div>
-
-                {/* Text */}
-                <p className="absolute bottom-8 text-zinc-500 font-mono text-sm tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  {t.playVideo}
-                </p>
+              {/* Video Player */}
+              <div className="relative bg-zinc-950">
+                {/* Video Element */}
+                <video
+                  className="w-full aspect-video"
+                  src={VIDEO_URL}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
               </div>
             </div>
           </div>
