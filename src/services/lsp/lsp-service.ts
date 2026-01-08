@@ -401,7 +401,6 @@ class LspService {
       case 'javascriptreact':
         // TypeScript Language Server specific options
         // IMPORTANT: tsserver.path must point to tsserver.js FILE, not the directory!
-        // This matches how opencode configures typescript-language-server
         return {
           tsserver: {
             // Path to the tsserver.js file (not just the lib directory)

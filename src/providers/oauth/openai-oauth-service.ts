@@ -9,7 +9,6 @@ import { type CodexRequestBody, transformRequestBody } from '@/services/openai-c
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-// OAuth constants from opencode-openai-codex-auth (openai/codex CLI)
 const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
 const OAUTH_AUTHORIZE_URL = 'https://auth.openai.com/oauth/authorize';
 const OAUTH_TOKEN_URL = 'https://auth.openai.com/oauth/token';

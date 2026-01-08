@@ -304,6 +304,24 @@ export class TestDatabaseAdapter {
         created_at INTEGER NOT NULL
       )`,
 
+      // Recent files table
+      `CREATE TABLE IF NOT EXISTS recent_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_path TEXT NOT NULL,
+        repository_path TEXT NOT NULL,
+        opened_at INTEGER NOT NULL,
+        UNIQUE(file_path, repository_path)
+      )`,
+
+      // Recent projects table (for dock menu)
+      `CREATE TABLE IF NOT EXISTS recent_projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id TEXT NOT NULL UNIQUE,
+        project_name TEXT NOT NULL,
+        root_path TEXT NOT NULL,
+        opened_at INTEGER NOT NULL
+      )`,
+
       // Agents table
       `CREATE TABLE IF NOT EXISTS agents (
         id TEXT PRIMARY KEY,
@@ -407,6 +425,8 @@ export class TestDatabaseAdapter {
       'CREATE INDEX IF NOT EXISTS idx_agents_is_hidden ON agents (is_hidden)',
       'CREATE INDEX IF NOT EXISTS idx_skills_category ON skills(category)',
       'CREATE INDEX IF NOT EXISTS idx_conversation_skills_conversation ON conversation_skills(conversation_id)',
+      'CREATE INDEX IF NOT EXISTS idx_recent_files_repository ON recent_files(repository_path, opened_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_recent_projects_opened_at ON recent_projects(opened_at DESC)',
     ];
   }
 

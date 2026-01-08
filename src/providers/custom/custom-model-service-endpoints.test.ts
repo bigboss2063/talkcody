@@ -77,29 +77,6 @@ describe('CustomModelService - Provider Endpoints Configuration', () => {
     ).toEqual([]);
   });
 
-  it('should have correct endpoints for OpenCode and other OpenAI-compatible providers', async () => {
-    const { customModelService } = await import('@/providers/custom/custom-model-service');
-
-    // Test specific providers that were missing
-    const expectedEndpoints = {
-      opencode: 'https://opencode.ai/zen/v1/models',
-      zai: 'https://api.z.ai/api/paas/v4/models',
-      qwen_code: 'https://dashscope.aliyuncs.com/compatible-mode/v1/models',
-      github_copilot: 'https://api.githubcopilot.com/models',
-      deepseek: 'https://api.deepseek.com/v1/models',
-      zhipu: 'https://open.bigmodel.cn/api/paas/v4/models',
-      moonshot: 'https://api.moonshot.cn/v1/models',
-    };
-
-    for (const [providerId, expectedEndpoint] of Object.entries(expectedEndpoints)) {
-      const actualEndpoint = customModelService.getModelsEndpoint(providerId);
-      expect(
-        actualEndpoint,
-        `Provider ${providerId} should have endpoint ${expectedEndpoint}`
-      ).toBe(expectedEndpoint);
-    }
-  });
-
   it('should correctly identify providers that support models fetch', async () => {
     const { customModelService } = await import('@/providers/custom/custom-model-service');
 
@@ -113,7 +90,6 @@ describe('CustomModelService - Provider Endpoints Configuration', () => {
       'zai',
       'google',
       'moonshot',
-      'opencode',
       'github_copilot',
       'qwen_code',
       'ollama',

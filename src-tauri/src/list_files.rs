@@ -1,5 +1,6 @@
-use crate::constants::{is_binary_extension, should_exclude_dir};
-use ignore::{WalkBuilder, WalkParallel, WalkState};
+use crate::constants::is_binary_extension;
+use crate::walker::{WalkerConfig, WorkspaceWalker};
+use ignore::{WalkParallel, WalkState};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -29,40 +30,15 @@ pub fn list_project_files(
     let limit = max_files.unwrap_or(DEFAULT_MAX_FILES);
     let file_count = Arc::new(AtomicUsize::new(0));
 
-    let mut builder = WalkBuilder::new(&root);
-    builder
-        .hidden(true) // skip hidden files/dirs by default
-        .git_ignore(true)
-        .git_global(true)
-        .git_exclude(true)
-        .follow_links(false);
+    // Determine max depth based on recursive flag
+    let depth = if !recursive { Some(1) } else { max_depth };
 
-    // Depth control: if not recursive, only list immediate children (depth 1)
-    if !recursive {
-        builder.max_depth(Some(1));
-    } else if let Some(d) = max_depth {
-        builder.max_depth(Some(d));
-    }
+    let config = WalkerConfig::for_list_files().with_max_depth(depth);
 
-    // Additional fast directory pruning similar to TS shouldSkipDirectory
-    builder.filter_entry(|e| {
-        if let Some(name) = e.file_name().to_str() {
-            if e.depth() == 0 {
-                return true;
-            }
-            if let Some(ft) = e.file_type() {
-                if ft.is_dir() {
-                    if name.starts_with('.') || should_exclude_dir(name) {
-                        return false;
-                    }
-                }
-            }
-        }
-        true
-    });
+    let walker: WalkParallel =
+        WorkspaceWalker::new(root.to_str().unwrap(), config).build_parallel();
 
     let (tx, rx) = channel();
-    let walker: WalkParallel = builder.build_parallel();
 
     walker.run(|| {
         let tx = tx.clone();

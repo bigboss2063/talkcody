@@ -3,7 +3,6 @@ import { isMCPTool, multiMCPAdapter } from '@/lib/mcp/multi-mcp-adapter';
 import { convertToolsForAI } from '@/lib/tool-adapter';
 import {
   getToolLabel,
-  getToolMetadata,
   getToolsForUISync,
   isValidToolName as isValidToolNameFromTools,
   loadAllTools,
@@ -62,13 +61,9 @@ async function getToolRegistry(): Promise<
     > = {};
 
     for (const [toolName, toolRef] of Object.entries(tools)) {
-      const metadata = getToolMetadata(toolName);
-      const toolRefTyped = toolRef as { isBeta?: boolean; badgeLabel?: string } | undefined;
       registry[toolName] = {
         ref: toolRef,
         label: getToolLabel(toolName),
-        isBeta: toolRefTyped?.isBeta === true || metadata.isBeta === true,
-        badgeLabel: metadata.badgeLabel ?? toolRefTyped?.badgeLabel,
       };
     }
 
@@ -236,8 +231,6 @@ export function getAvailableToolsForUISync(): Array<{
   id: string;
   label: string;
   ref: unknown;
-  isBeta: boolean;
-  badgeLabel?: string;
 }> {
   return getToolsForUISync();
 }

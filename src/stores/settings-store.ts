@@ -40,6 +40,9 @@ interface SettingsState {
   current_task_id: string;
   current_root_path: string;
 
+  // Custom Tools
+  custom_tools_dir: string;
+
   // Model Type Settings
   model_type_main: string;
   model_type_small: string;
@@ -110,6 +113,10 @@ interface SettingsActions {
   setCurrentProjectId: (projectId: string) => Promise<void>;
   setCurrentTaskId: (taskId: string) => void;
   setCurrentRootPath: (rootPath: string) => void;
+
+  // Custom Tools
+  setCustomToolsDir: (path: string) => Promise<void>;
+  getCustomToolsDir: () => string;
 
   // Model Type Settings
   setModelType: (
@@ -209,6 +216,7 @@ const DEFAULT_SETTINGS: Omit<SettingsState, 'loading' | 'error' | 'isInitialized
   project: DEFAULT_PROJECT,
   current_task_id: '',
   current_root_path: '',
+  custom_tools_dir: '',
   model_type_main: '',
   model_type_small: '',
   model_type_image_generator: '',
@@ -271,6 +279,7 @@ class SettingsDatabase {
       project: DEFAULT_PROJECT,
       current_task_id: '',
       current_root_path: '',
+      custom_tools_dir: '',
       ai_completion_enabled: 'false',
       get_context_tool_model: GROK_CODE_FAST,
       is_plan_mode_enabled: 'false',
@@ -403,6 +412,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         'project',
         'current_task_id',
         'current_root_path',
+        'custom_tools_dir',
         'model_type_main',
         'model_type_small',
         'model_type_image_generator',
@@ -477,6 +487,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         project: rawSettings.project || DEFAULT_PROJECT,
         current_task_id: rawSettings.current_task_id || '',
         current_root_path: rawSettings.current_root_path || '',
+        custom_tools_dir: rawSettings.custom_tools_dir || '',
         model_type_main: rawSettings.model_type_main || '',
         model_type_small: rawSettings.model_type_small || '',
         model_type_image_generator: rawSettings.model_type_image_generator || '',
@@ -617,6 +628,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     settingsDb.set('current_root_path', rootPath).catch((error) => {
       logger.error('Failed to persist current_root_path:', error);
     });
+  },
+
+  // Custom Tools
+  setCustomToolsDir: async (path: string) => {
+    await settingsDb.set('custom_tools_dir', path);
+    set({ custom_tools_dir: path });
+  },
+
+  getCustomToolsDir: () => {
+    return get().custom_tools_dir || '';
   },
 
   // Model Type Settings
@@ -998,6 +1019,7 @@ export const settingsManager = {
   setPlanModeEnabled: (enabled: boolean) => useSettingsStore.getState().setPlanModeEnabled(enabled),
   setWorktreeModeEnabled: (enabled: boolean) =>
     useSettingsStore.getState().setWorktreeModeEnabled(enabled),
+  setCustomToolsDir: (path: string) => useSettingsStore.getState().setCustomToolsDir(path),
 
   getModel: () => useSettingsStore.getState().getModel(),
   getAgentId: () => useSettingsStore.getState().getAgentId(),
@@ -1005,6 +1027,7 @@ export const settingsManager = {
   getIsThink: () => useSettingsStore.getState().getIsThink(),
   getCurrentTaskId: () => useSettingsStore.getState().getCurrentTaskId(),
   getCurrentRootPath: () => useSettingsStore.getState().getCurrentRootPath(),
+  getCustomToolsDir: () => useSettingsStore.getState().getCustomToolsDir(),
   getAICompletionEnabled: () => useSettingsStore.getState().getAICompletionEnabled(),
   getPlanModeEnabled: () => useSettingsStore.getState().getPlanModeEnabled(),
   getWorktreeModeEnabled: () => useSettingsStore.getState().getWorktreeModeEnabled(),

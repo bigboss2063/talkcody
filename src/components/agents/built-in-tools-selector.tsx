@@ -1,6 +1,5 @@
 import { CheckCircle2, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { BetaBadge } from '@/components/beta-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { isToolAllowedForAgent } from '@/services/agents/agent-tool-access';
@@ -113,7 +112,6 @@ export function BuiltInToolsSelector({
                 <div className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-1">
                   <Wrench className="h-3 w-3 inline" />
                   <span className="truncate">{tool.label}</span>
-                  {tool.isBeta && <BetaBadge className="scale-90" />}
                 </div>
                 <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">ID: {tool.id}</div>
               </div>

@@ -38,7 +38,6 @@ const PROVIDER_MODELS_ENDPOINTS: Record<string, string | null> = {
   google: 'https://generativelanguage.googleapis.com/v1beta/models', // API key as query param
   aiGateway: 'https://ai-gateway.vercel.sh/v1/models',
   moonshot: 'https://api.moonshot.cn/v1/models',
-  opencode: 'https://opencode.ai/zen/v1/models',
   github_copilot: 'https://api.githubcopilot.com/models',
   qwen_code: 'https://dashscope.aliyuncs.com/compatible-mode/v1/models',
   // Non-AI providers, no need to test

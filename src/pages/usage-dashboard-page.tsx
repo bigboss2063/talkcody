@@ -3,7 +3,6 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  ClaudeUsageTab,
   GitHubCopilotUsageTab,
   MinimaxUsageTab,
   OpenAIUsageTab,
@@ -24,16 +23,12 @@ export function UsageDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="claude" className="w-full">
-          <TabsList className="grid w-full max-w-2xl grid-cols-5">
-            <TabsTrigger value="claude">Claude</TabsTrigger>
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="openai">OpenAI</TabsTrigger>
             <TabsTrigger value="github-copilot">GitHub Copilot</TabsTrigger>
             <TabsTrigger value="zhipu">Zhipu AI</TabsTrigger>
             <TabsTrigger value="minimax">MiniMax</TabsTrigger>
           </TabsList>
-          <TabsContent value="claude" className="mt-6">
-            <ClaudeUsageTab />
-          </TabsContent>
           <TabsContent value="openai" className="mt-6">
             <OpenAIUsageTab />
           </TabsContent>

@@ -9,11 +9,13 @@ import {
   Settings,
   Terminal,
   User,
+  Wrench,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AboutSettings } from '@/components/settings/about-settings';
 import { AccountSettings } from '@/components/settings/account-settings';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
+import { CustomToolsSettings } from '@/components/settings/custom-tools-settings';
 import { GeneralSettings } from '@/components/settings/general-settings';
 import { LintSettings } from '@/components/settings/lint-settings';
 import { LspSettings } from '@/components/settings/lsp-settings';
@@ -113,6 +115,13 @@ export function SettingsPage() {
               <GitBranch className="size-4" />
               {t.Settings.tabs.worktree || 'Worktree'}
             </TabsTrigger>
+            <TabsTrigger
+              value="custom-tools"
+              className="w-full justify-start gap-2 rounded-md px-3 py-2"
+            >
+              <Wrench className="size-4" />
+              {t.Settings.tabs.customTools}
+            </TabsTrigger>
 
             <Separator className="my-2" />
 
@@ -152,6 +161,10 @@ export function SettingsPage() {
 
             <TabsContent value="worktree" className="mt-0 flex-none space-y-6">
               <WorktreeSettings />
+            </TabsContent>
+
+            <TabsContent value="custom-tools" className="mt-0 flex-none space-y-6">
+              <CustomToolsSettings />
             </TabsContent>
 
             <TabsContent value="shortcuts" className="mt-0 flex-none space-y-6">

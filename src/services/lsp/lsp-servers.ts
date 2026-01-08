@@ -58,7 +58,6 @@ export const LSP_SERVERS: Record<string, LspServerConfig> = {
     ],
     command: 'typescript-language-server',
     args: ['--stdio'],
-    // Lock files indicate package root (same as opencode)
     rootPatterns: [
       'package-lock.json',
       'bun.lockb',
@@ -320,11 +319,6 @@ export function getLanguageDisplayName(language: string): string {
 /**
  * Find the workspace root for a file based on rootPatterns
  * Walks up the directory tree to find the nearest directory containing a rootPattern file
- *
- * This follows the same pattern as opencode's NearestRoot function:
- * - Start from the file's directory
- * - Walk up checking each directory for rootPattern files
- * - Return the first directory containing a rootPattern, or repoRoot as fallback
  */
 export async function findWorkspaceRoot(
   filePath: string,

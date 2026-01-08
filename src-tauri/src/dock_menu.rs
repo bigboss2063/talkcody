@@ -33,14 +33,66 @@ fn create_window_from_dock(
 }
 
 /// Query recent projects from database
+/// Uses the recent_projects table which tracks actual project open times
 async fn query_recent_projects(db: &Arc<Database>) -> Vec<serde_json::Value> {
-    let sql = "SELECT id, name, root_path FROM projects WHERE root_path IS NOT NULL ORDER BY updated_at DESC LIMIT 5";
+    // Query from recent_projects table which tracks when projects were actually opened
+    // This gives accurate "recent" ordering based on last open time, not update time
+    let sql = "SELECT project_id as id, project_name as name, root_path FROM recent_projects ORDER BY opened_at DESC LIMIT 10";
     match db.query(sql, vec![]).await {
         Ok(result) => result.rows,
         Err(e) => {
             log::error!("Failed to query recent projects for dock menu: {}", e);
             vec![]
         }
+    }
+}
+
+/// Refresh the dock menu with the latest recent projects
+/// This function queries the database and updates the dock menu on the main thread
+#[cfg(target_os = "macos")]
+pub async fn refresh_dock_menu() {
+    let app_handle = crate::get_app_handle().clone();
+
+    // Try to get database with retry
+    let db = {
+        let mut retry_count = 0;
+        let max_retries = 5;
+        let mut backoff_ms: u64 = 50;
+
+        loop {
+            if let Some(state) = app_handle.try_state::<Arc<Database>>() {
+                let db = state.inner().clone();
+                if db.connect().await.is_ok() {
+                    break db;
+                }
+            }
+
+            retry_count += 1;
+            if retry_count >= max_retries {
+                log::error!(
+                    "Failed to get database for dock menu refresh after {} retries",
+                    max_retries
+                );
+                return;
+            }
+
+            let sleep_ms = backoff_ms;
+            backoff_ms = (backoff_ms * 2).min(500);
+            tokio::time::sleep(tokio::time::Duration::from_millis(sleep_ms)).await;
+        }
+    };
+
+    let recent_projects = query_recent_projects(&db).await;
+
+    log::info!(
+        "Refreshing dock menu with {} recent projects",
+        recent_projects.len()
+    );
+
+    if let Err(e) = app_handle.run_on_main_thread(move || {
+        create_native_dock_menu(&recent_projects);
+    }) {
+        log::error!("Failed to refresh dock menu on main thread: {}", e);
     }
 }
 
@@ -246,10 +298,6 @@ fn create_native_dock_menu(recent_projects: &[serde_json::Value]) {
         // SAFETY: Class was registered above in Once block, guaranteed to exist
         let target_class = Class::get("TalkCodyDockMenuTarget").unwrap();
 
-        // Note: Folder icon temporarily disabled due to compatibility issues
-        // We'll use a simple text-based menu for now
-        log::info!("Creating dock menu without folder icons");
-
         // Add recent projects (with folder icon)
         if !menu_entries.is_empty() {
             for entry in menu_entries {
@@ -314,6 +362,12 @@ fn create_native_dock_menu(recent_projects: &[serde_json::Value]) {
 /// No-op for other platforms
 #[cfg(not(target_os = "macos"))]
 pub fn setup_dock_menu() {
+    // Dock menu is only supported on macOS
+}
+
+/// No-op for other platforms
+#[cfg(not(target_os = "macos"))]
+pub async fn refresh_dock_menu() {
     // Dock menu is only supported on macOS
 }
 

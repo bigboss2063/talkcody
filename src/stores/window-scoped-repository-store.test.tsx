@@ -52,6 +52,8 @@ vi.mock('@/services/fast-directory-tree-service', () => ({
 vi.mock('@/services/database-service', () => ({
   databaseService: {
     createOrGetProjectForRepository: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Test Project' }),
+    getProject: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Test Project' }),
+    trackProjectOpened: vi.fn().mockResolvedValue(undefined),
   },
 }));
 

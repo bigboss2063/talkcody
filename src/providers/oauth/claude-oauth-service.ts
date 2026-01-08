@@ -7,7 +7,6 @@ import { simpleFetch, streamFetch } from '@/lib/tauri-fetch';
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-// OAuth constants from opencode-anthropic-auth
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_AUTHORIZE_URL = 'https://claude.ai/oauth/authorize';
 const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';

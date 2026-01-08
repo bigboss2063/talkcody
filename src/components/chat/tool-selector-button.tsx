@@ -97,7 +97,6 @@ export function ToolSelectorButton() {
       id: tool.id,
       label: tool.label,
       type: 'built-in' as const,
-      isBeta: tool.isBeta,
     }));
   }, [builtInTools]);
 
@@ -253,7 +252,6 @@ export function ToolSelectorButton() {
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate flex items-center gap-2">
                           <span className="truncate">{tool.label}</span>
-                          {tool.isBeta && <BetaBadge className="scale-90" />}
                         </div>
                       </div>
 

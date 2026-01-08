@@ -80,6 +80,8 @@ export function GenericToolDoing({
         return 'Fetching web page';
       case 'update':
         return 'Updating';
+      case 'custom':
+        return 'Running custom tool';
       default:
         return `Processing ${operation}`;
     }

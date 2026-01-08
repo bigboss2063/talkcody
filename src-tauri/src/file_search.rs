@@ -1,5 +1,5 @@
-use crate::constants::{is_code_extension, is_code_filename, should_exclude_dir};
-use ignore::WalkBuilder;
+use crate::constants::{is_code_extension, is_code_filename};
+use crate::walker::{WalkerConfig, WorkspaceWalker};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
@@ -48,26 +48,9 @@ impl HighPerformanceFileSearch {
             return Ok(vec![]);
         }
 
-        // Use sequential file collection with ignore crate for simplicity and correctness
-        let mut walker_builder = WalkBuilder::new(root_path);
-        walker_builder
-            .standard_filters(false)
-            .parents(true)
-            .max_depth(Some(20))
-            .filter_entry(|entry| {
-                if entry.path().is_dir() {
-                    if let Some(name) = entry.path().file_name().and_then(OsStr::to_str) {
-                        // Always allow .github directory for CI/CD files (workflows, templates, etc.)
-                        if name == ".github" {
-                            return true;
-                        }
-                        return !should_exclude_dir(name);
-                    }
-                }
-                true
-            });
-
-        let walker = walker_builder.build();
+        // Use sequential file collection with unified walker for simplicity and correctness
+        let config = WalkerConfig::for_file_search();
+        let walker = WorkspaceWalker::new(root_path, config).build();
         let mut results = Vec::new();
 
         for result in walker {

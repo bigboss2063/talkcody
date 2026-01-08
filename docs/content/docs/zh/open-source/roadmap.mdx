@@ -23,12 +23,9 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 一个 Project内，一个Task开发功能，一个Task 修复 bug，一个Task写文档，多个Task并行工作。
 
-- [ ] 支持多个 conversation/task 并行执行
-- [ ] 和 Git Worktree 集成
-- [ ] 支持 task 后台执行
-- [ ] 支持 task 队列
-- [ ] Task 完整的生命周期管理
-- [ ] UI 交互更新
+- [x] 支持多个 task 并行执行
+- [x] 和 Git Worktree 集成
+- [x] 支持 task 后台执行
 
 #### 1.1.2 多 Agent 协作并行
 
@@ -38,10 +35,14 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 ### 1.2 成本
 
-- [ ] Compaction 策略优化
-- [ ] 支持 list file methods tool
+- [x] 支持 Claude 订阅
+- [x] 支持 ChatGPT 订阅
+- [x] 支持 Github Copilot 订阅
+- [x] 支持 Qwen Code 认证
+- [x] 实现 3级 Compaction 策略
+- [ ] 支持 LSP tool
 - [ ] 支持 TOON encoding/decoding
-- [ ] 优化每个tool的输出 token
+- [x] 优化每个tool的输出 token
 - [ ] web fetch tool 加入 AI 分析和总结
 
 ### 1.3 正确性
@@ -52,12 +53,19 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 ### 1.4 易用性
 
-- [ ] 和 Editor 更好的集成
+- [x] Editor 支持 LSP
+- [x] 支持多语言
+- [x] 支持自定义 Model 和自定义 Provider
+- [x] 支持 Lint
+- [x] 支持 一键 AI Code Review
+- [x] 支持 一键 AI Git Commit
+- [x] 支持 Usage Dashboard
+- [x] 支持 Share Link
+- [x] 支持 免费的 web search tool
 - [ ] 和 Terminal 更好的集成
-- [ ] 和 git 和 github 更好的集成
+- [ ] 和 Git 和 Github 更好的集成
 - [ ] 支持 AI 代码自动补全
 - [ ] 支持模型的自动选择和路由
-- [ ] 增强可观测性
 
 ## TalkCody 里程碑2：覆盖开发者主流工作流的 AI Agent
 
@@ -65,11 +73,11 @@ import { Callout } from 'fumadocs-ui/components/callout';
 目标： 不仅能写代码，还能融入团队日常协作工具链
 </Callout>
 
-- [ ] 兼容 Claude Code Skills 生态
-- [ ] 持续完善丰富 Skills 和 Agents 市场
+- [x] 兼容 Agent Skills 生态
+- [ ] 兼容 Claude Code Skills
 - [ ] 内置更多的 command
 - [ ] 支持 Deep Research Agent
-- [ ] 支持 Image Generator Agent
+- [x] 支持 Image Generator Agent
 
 ## TalkCody 里程碑3：覆盖独立开发者的完整工作流的 AI Agent
 
@@ -82,4 +90,3 @@ import { Callout } from 'fumadocs-ui/components/callout';
 ## 欢迎参与共建！
 
 - [GitHub 仓库](https://github.com/talkcody/talkcody)
-

@@ -181,6 +181,7 @@ export interface LocaleDefinition {
       general: string;
       about: string;
       language: string;
+      customTools: string;
     };
     account: {
       title: string;
@@ -483,6 +484,9 @@ export interface LocaleDefinition {
       lookingFor: string;
       noFilesContainAllKeywords: string;
       matchingAll: string;
+      recentFiles: string;
+      noRecentFiles: string;
+      recentFilesHint: string;
     };
     about: {
       title: string;
@@ -525,6 +529,18 @@ export interface LocaleDefinition {
       customPathHint: string;
       defaultPathHint: string;
       pathPreview: string;
+    };
+    customTools: {
+      title: string;
+      description: string;
+      locationLabel: string;
+      empty: string;
+      selectDirectory: string;
+      customDirectoryLabel: string;
+      customDirectoryUnset: string;
+      sourcesHint: string;
+      workspaceDirectoryLabel: string;
+      homeDirectoryLabel: string;
     };
   };
 

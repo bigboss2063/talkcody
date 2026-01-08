@@ -34,7 +34,7 @@ import { useExecutionStore } from '@/stores/execution-store';
 import { useGitStore } from '@/stores/git-store';
 import { useLintStore } from '@/stores/lint-store';
 import { useProjectStore } from '@/stores/project-store';
-import { settingsManager, useSettingsStore } from '@/stores/settings-store';
+import { DEFAULT_PROJECT, settingsManager, useSettingsStore } from '@/stores/settings-store';
 import { useTerminalStore } from '@/stores/terminal-store';
 import { useRepositoryStore } from '@/stores/window-scoped-repository-store';
 import { useWorktreeStore } from '@/stores/worktree-store';
@@ -73,6 +73,7 @@ export function RepositoryLayout() {
 
   // Get current project ID from settings store (reactive to changes)
   const currentProjectId = useSettingsStore((state) => state.project);
+  const isDefaultProject = currentProjectId === DEFAULT_PROJECT;
 
   // Circuit breaker: track paths that failed to open to prevent infinite retry loops
   const [failedPaths] = useState(() => new Set<string>());
@@ -114,6 +115,7 @@ export function RepositoryLayout() {
   const createFile = useRepositoryStore((state) => state.createFile);
   const renameFile = useRepositoryStore((state) => state.renameFile);
   const toggleExpansion = useRepositoryStore((state) => state.toggleExpansion);
+  const getRecentFiles = useRepositoryStore((state) => state.getRecentFiles);
 
   // Derive currentFile from openFiles and activeFileIndex
   const currentFile =
@@ -138,8 +140,8 @@ export function RepositoryLayout() {
   // Determine if we have a loaded repository
   const hasRepository = !!(rootPath && fileTree);
 
-  // Determine if we should show sidebar (show when has repository OR has project selected)
-  const shouldShowSidebar = hasRepository || !!currentProjectId;
+  // Determine if we should show sidebar (show when has repository OR default project selected)
+  const shouldShowSidebar = hasRepository || isDefaultProject;
 
   const handleAddFileToChat = async (filePath: string, fileContent: string) => {
     // This will be handled by ChatBox's internal handleExternalAddFileToChat
@@ -258,12 +260,12 @@ export function RepositoryLayout() {
     }
   }, [sidebarView, currentProjectId, loadTasks]);
 
-  // Force switch to Tasks view when no repository but has project
+  // Force switch to Tasks view when no repository but default project selected
   useEffect(() => {
-    if (!hasRepository && currentProjectId && sidebarView === SidebarView.FILES) {
+    if (!hasRepository && isDefaultProject && sidebarView === SidebarView.FILES) {
       setSidebarView(SidebarView.TASKS);
     }
-  }, [hasRepository, currentProjectId, sidebarView]);
+  }, [hasRepository, isDefaultProject, sidebarView]);
 
   // Load saved repository on component mount
   useEffect(() => {
@@ -504,6 +506,7 @@ export function RepositoryLayout() {
   return (
     <>
       <GlobalFileSearch
+        getRecentFiles={getRecentFiles}
         isOpen={isFileSearchOpen}
         onClose={closeFileSearch}
         onFileSelect={handleSearchFileSelect}
@@ -834,7 +837,9 @@ export function RepositoryLayout() {
                       ? hasOpenFiles || isTerminalVisible
                         ? 40
                         : 80
-                      : 50
+                      : shouldShowSidebar
+                        ? 80
+                        : 50
                 }
                 maxSize={100}
                 minSize={hasRepository ? 20 : 30}

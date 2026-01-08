@@ -303,7 +303,6 @@ export const useGitHubCopilotOAuthStore = create<GitHubCopilotOAuthStore>((set, 
 
     try {
       // Directly use OAuth access token to get new Copilot API token
-      // This follows the SST opencode-copilot-auth implementation
       const copilotResult = await getCopilotApiToken(accessToken, enterpriseUrl || undefined);
 
       if (copilotResult.type === 'failed' || !copilotResult.tokens) {

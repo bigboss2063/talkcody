@@ -1,5 +1,8 @@
 // Shared constants for file operations
 
+/// Default maximum depth for directory traversal
+pub const DEFAULT_MAX_DEPTH: usize = 20;
+
 /// Directories to exclude from file operations
 pub const EXCLUDED_DIRS: &[&str] = &[
     "node_modules",
@@ -143,6 +146,7 @@ pub const CODE_FILENAMES: &[&str] = &[
     "gulpfile",
     ".env",
     ".env.local",
+    ".env.example",
     ".env.development",
     ".env.production",
     ".env.test",

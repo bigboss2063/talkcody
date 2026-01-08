@@ -2,9 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
 
 use crate::file_watcher::FileWatcher;
 
@@ -59,10 +58,7 @@ impl WindowRegistry {
                 label: label.clone(),
                 project_id: state.project_id.clone(),
                 root_path: state.root_path.clone(),
-                title: state
-                    .root_path
-                    .clone()
-                    .unwrap_or_else(|| "TalkCody".to_string()),
+                title: build_window_title(state.root_path.as_ref()),
             });
         }
         Ok(infos)
@@ -538,7 +534,7 @@ mod tests {
     fn test_get_all_windows_title_fallback() {
         let registry = WindowRegistry::new();
 
-        // Window with root_path - should use root_path as title
+        // Window with root_path - should use project name as title
         let state_with_path = WindowState {
             project_id: None,
             root_path: Some("/path/to/project".to_string()),
@@ -564,11 +560,38 @@ mod tests {
         // Find each window and check title
         for window in &windows {
             if window.label == "window-1" {
-                assert_eq!(window.title, "/path/to/project");
+                assert_eq!(window.title, "project - TalkCody");
             } else if window.label == "window-2" {
                 assert_eq!(window.title, "TalkCody");
             }
         }
+    }
+
+    #[test]
+    fn test_build_window_title() {
+        // Test with normal path - should extract project name
+        assert_eq!(
+            build_window_title(Some(&"/path/to/myproject".to_string())),
+            "myproject - TalkCody"
+        );
+
+        // Test with None - should return "TalkCody"
+        assert_eq!(build_window_title(None), "TalkCody");
+
+        // Test with deeply nested path
+        assert_eq!(
+            build_window_title(Some(&"/Users/kks/mygit/talkcody".to_string())),
+            "talkcody - TalkCody"
+        );
+
+        // Test with single directory name
+        assert_eq!(
+            build_window_title(Some(&"project".to_string())),
+            "project - TalkCody"
+        );
+
+        // Test with root path only
+        assert_eq!(build_window_title(Some(&"/".to_string())), "TalkCody");
     }
 
     #[test]

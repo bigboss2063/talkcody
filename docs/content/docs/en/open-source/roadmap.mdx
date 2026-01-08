@@ -22,12 +22,9 @@ Goal: Generate executable code with the lowest cost + fastest speed + highest ac
 
 Within a Project, one Task develops features, one Task fixes bugs, one Task writes documentation - multiple Tasks working in parallel.
 
-- [ ] Support parallel execution of multiple conversations/tasks
-- [ ] Integration with Git Worktree
-- [ ] Support background task execution
-- [ ] Support task queues
-- [ ] Complete lifecycle management for Tasks
-- [ ] UI interaction updates
+- [x] Support parallel execution of multiple tasks
+- [x] Integration with Git Worktree
+- [x] Support background task execution
 
 #### 1.1.2 Multi-Agent Collaborative Parallelism
 
@@ -37,10 +34,14 @@ Implement Orchestrator-Worker pattern: Main Agent breaks down tasks, Coder, Test
 
 ### 1.2 Cost
 
-- [ ] Compaction strategy optimization
-- [ ] Support list file methods tool
+- [x] Support Claude subscription
+- [x] Support ChatGPT subscription
+- [x] Support GitHub Copilot subscription
+- [x] Support Qwen Code authentication
+- [x] Implement 3-level Compaction strategy
+- [ ] Support LSP tool
 - [ ] Support TOON encoding/decoding
-- [ ] Optimize output tokens for each tool
+- [x] Optimize output tokens for each tool
 - [ ] Add AI analysis and summarization to web fetch tool
 
 ### 1.3 Accuracy
@@ -51,12 +52,19 @@ Implement Orchestrator-Worker pattern: Main Agent breaks down tasks, Coder, Test
 
 ### 1.4 Usability
 
-- [ ] Better integration with Editors
+- [x] Editor with LSP support
+- [x] Multi-language support
+- [x] Support custom Models and custom Providers
+- [x] Support Lint
+- [x] Support one-click AI Code Review
+- [x] Support one-click AI Git Commit
+- [x] Support Usage Dashboard
+- [x] Support Share Link
+- [x] Support free web search tool
 - [ ] Better integration with Terminal
-- [ ] Better integration with git and github
+- [ ] Better integration with Git and GitHub
 - [ ] Support AI code auto-completion
 - [ ] Support automatic model selection and routing
-- [ ] Enhanced observability
 
 ## TalkCody Milestone 2: AI Agent Covering Developers' Main Workflows
 
@@ -64,11 +72,11 @@ Implement Orchestrator-Worker pattern: Main Agent breaks down tasks, Coder, Test
 Goal: Not only write code, but also integrate into team daily collaboration toolchain
 </Callout>
 
-- [ ] Compatible with Claude Code Skills ecosystem
-- [ ] Continuously improve and enrich Skills and Agents marketplace
+- [x] Compatible with Agent Skills ecosystem
+- [ ] Compatible with Claude Code Skills
 - [ ] Built-in more commands
 - [ ] Support Deep Research Agent
-- [ ] Support Image Generator Agent
+- [x] Support Image Generator Agent
 
 ## TalkCody Milestone 3: AI Agent Covering Independent Developers' Complete Workflow
 
@@ -81,4 +89,3 @@ Goal: One person can work like a company, from idea → product launch → autom
 ## Welcome to Contribute!
 
 - [GitHub Repository](https://github.com/talkcody/talkcody)
-

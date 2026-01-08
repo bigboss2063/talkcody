@@ -77,6 +77,9 @@ interface RepositoryActions {
   handleExternalFileChange: (filePath: string) => Promise<void>;
   applyExternalChange: (keepLocal: boolean) => void;
   markRecentSave: (filePath: string) => void;
+
+  // Recent files
+  getRecentFiles: () => Promise<FileNode[]>;
 }
 
 type RepositoryStore = RepositoryState & RepositoryActions;
@@ -238,6 +241,27 @@ function createRepositoryStore() {
           logger.error('Failed to save window state:', error);
         }
 
+        // Track project opened for dock menu (non-blocking)
+        databaseService
+          .getProject(projectId)
+          .then((project) => {
+            return databaseService.trackProjectOpened(projectId, project.name, path);
+          })
+          .then(async () => {
+            logger.info('[openRepository] Project tracked as recently opened');
+            // Refresh dock menu to show updated recent projects list
+            try {
+              const { invoke } = await import('@tauri-apps/api/core');
+              await invoke('refresh_dock_menu');
+              logger.info('[openRepository] Dock menu refreshed');
+            } catch (error) {
+              logger.error('Failed to refresh dock menu:', error);
+            }
+          })
+          .catch((error) => {
+            logger.error('Failed to track project opened:', error);
+          });
+
         toast.success(getTranslations().RepositoryStore.success.repositoryOpened);
         logger.info('[openRepository] Repository opened successfully!');
       } catch (error) {
@@ -287,7 +311,7 @@ function createRepositoryStore() {
 
     // Select a file to open
     selectFile: async (filePath: string, lineNumber?: number) => {
-      const { openFiles, expandToFile } = get();
+      const { openFiles, expandToFile, rootPath } = get();
 
       // Expand file tree to show the selected file
       await expandToFile(filePath);
@@ -302,6 +326,13 @@ function createRepositoryStore() {
             index === existingIndex ? { ...file, lineNumber } : file
           ),
         });
+
+        // Track recently opened file (non-blocking)
+        if (rootPath) {
+          databaseService.addRecentFile(filePath, rootPath).catch((error) => {
+            logger.debug('Failed to add recent file:', error);
+          });
+        }
         return;
       }
 
@@ -330,6 +361,14 @@ function createRepositoryStore() {
           ),
           isLoading: false,
         }));
+
+        // Track recently opened file (non-blocking)
+        const currentRootPath = get().rootPath;
+        if (currentRootPath) {
+          databaseService.addRecentFile(filePath, currentRootPath).catch((error) => {
+            logger.debug('Failed to add recent file:', error);
+          });
+        }
       } catch (error) {
         const errorMessage = (error as Error).message;
         set((state) => ({
@@ -783,6 +822,29 @@ function createRepositoryStore() {
           recentSaves.delete(filePath);
         }
       }, RECENT_SAVE_TIMEOUT);
+    },
+
+    // Get recent files for the current repository
+    getRecentFiles: async (): Promise<FileNode[]> => {
+      const { rootPath } = get();
+      if (!rootPath) {
+        return [];
+      }
+
+      try {
+        const recentFiles = await databaseService.getRecentFiles(rootPath, 50);
+
+        // Convert RecentFile[] to FileNode[]
+        return recentFiles.map((recentFile) => ({
+          name: repositoryService.getFileNameFromPath(recentFile.file_path),
+          path: recentFile.file_path,
+          is_directory: false,
+          is_lazy_loaded: false,
+        }));
+      } catch (error) {
+        logger.error('Failed to get recent files:', error);
+        return [];
+      }
     },
   }));
 }

@@ -186,6 +186,7 @@ const en: LocaleDefinition = {
       about: 'About',
       general: 'General',
       language: 'Language',
+      customTools: 'Custom Tools',
     },
     account: {
       title: 'Account Settings',
@@ -503,6 +504,9 @@ const en: LocaleDefinition = {
       lookingFor: 'Looking for:',
       noFilesContainAllKeywords: 'No files contain all keywords:',
       matchingAll: '(matching all:',
+      recentFiles: 'Recently Opened Files',
+      noRecentFiles: 'No recent files yet',
+      recentFilesHint: 'Files you recently opened will appear here',
     },
     about: {
       title: 'About TalkCody',
@@ -548,6 +552,20 @@ const en: LocaleDefinition = {
       customPathHint: 'Using custom path. Click reset to use default.',
       defaultPathHint: 'Using default path: {path}',
       pathPreview: 'Example worktree path:',
+    },
+    customTools: {
+      title: 'Custom Tools',
+      description:
+        'Load tools from a custom directory .talkcody/tools, workspace .talkcody/tools, or home ~/.talkcody/tools.',
+      locationLabel: 'Tool directory',
+      selectDirectory: 'Select directory',
+      customDirectoryLabel: 'Custom directory',
+      customDirectoryUnset: 'Not set (using workspace and home directories)',
+      sourcesHint:
+        'Scan order: Custom directory .talkcody/tools > Workspace .talkcody/tools > Home ~/.talkcody/tools',
+      workspaceDirectoryLabel: 'Workspace directory',
+      homeDirectoryLabel: 'Home directory',
+      empty: 'No custom tools found.',
     },
   },
 

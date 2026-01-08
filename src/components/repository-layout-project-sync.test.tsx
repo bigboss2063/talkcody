@@ -11,10 +11,11 @@
  */
 
 import type React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RepositoryLayout } from './repository-layout';
-import { useSettingsStore } from '@/stores/settings-store';
+import { ResizablePanel } from '@/components/ui/resizable';
+import { DEFAULT_PROJECT, useSettingsStore } from '@/stores/settings-store';
 import { useRepositoryStore } from '@/stores/window-scoped-repository-store';
 import { useProjectStore } from '@/stores/project-store';
 
@@ -27,6 +28,15 @@ vi.mock('@/stores/terminal-store');
 vi.mock('@/stores/execution-store');
 vi.mock('@/stores/worktree-store');
 vi.mock('@/stores/lint-store');
+vi.mock('@/components/ui/resizable', () => ({
+  ResizablePanelGroup: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="resizable-panel-group">{children}</div>
+  ),
+  ResizablePanel: vi.fn((props: { children?: React.ReactNode }) => (
+    <div data-testid="resizable-panel">{props.children}</div>
+  )),
+  ResizableHandle: () => <div data-testid="resizable-handle" />,
+}));
 vi.mock('@/hooks/use-repository-watcher');
 vi.mock('@/hooks/use-global-shortcuts');
 vi.mock('@/hooks/use-global-file-search');
@@ -88,7 +98,14 @@ vi.mock('@/hooks/use-global-file-search', () => ({
 // Create a shared translation mock object to ensure consistency
 const mockTranslations = {
   Sidebar: { files: 'Files', tasks: 'Tasks' },
-  FileTree: { success: {}, errors: {} },
+  FileTree: {
+    success: {},
+    errors: {},
+    contextMenu: {
+      newFile: 'New File',
+      newFolder: 'New Folder',
+    },
+  },
   RepositoryStore: { success: {}, errors: {} },
   Settings: { search: { searchFiles: 'Search Files' } },
   Repository: {
@@ -353,6 +370,23 @@ vi.mock('@/hooks/use-global-shortcuts', () => ({
   useGlobalShortcuts: vi.fn(),
 }));
 
+const getPanelSizingByOrder = (order: number) => {
+  const panelProps = vi
+    .mocked(ResizablePanel)
+    .mock.calls.map((call) => call[0])
+    .find((props) => props?.order === order);
+
+  if (!panelProps) {
+    throw new Error(`Missing ResizablePanel with order ${order}`);
+  }
+
+  return {
+    defaultSize: panelProps.defaultSize,
+    minSize: panelProps.minSize,
+    maxSize: panelProps.maxSize,
+  };
+};
+
 describe('RepositoryLayout - Project Sync Bug Fix', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -390,7 +424,7 @@ describe('RepositoryLayout - Project Sync Bug Fix', () => {
         createFile: vi.fn(),
         renameFile: vi.fn(),
         toggleExpansion: vi.fn(),
-
+        getRecentFiles: vi.fn(),
       };
       return selector ? selector(state) : state;
     });
@@ -398,6 +432,7 @@ describe('RepositoryLayout - Project Sync Bug Fix', () => {
     vi.mocked(useProjectStore).mockImplementation((selector: any) => {
       const state = {
         projects: [
+          { id: DEFAULT_PROJECT, name: 'Default Project', root_path: null },
           { id: 'project-1', name: 'Project 1', root_path: '/test/path1' },
           { id: 'project-2', name: 'Project 2', root_path: '/test/path2' },
         ],
@@ -495,5 +530,195 @@ describe('RepositoryLayout - Project Sync Bug Fix', () => {
     // The currentProjectId should be derived from settings store
     // and passed to components like FileTreeHeader and task filters
     expect(useSettingsStore).toHaveBeenCalled();
+  });
+
+  it('should show empty repository state when no repo and non-default project selected', () => {
+    vi.mocked(useSettingsStore).mockImplementation((selector: any) => {
+      const state = {
+        project: 'project-1',
+        language: 'en',
+      };
+      return selector ? selector(state) : state;
+    });
+
+    vi.mocked(useRepositoryStore).mockImplementation((selector: any) => {
+      const state = {
+        rootPath: null,
+        fileTree: null,
+        openFiles: [],
+        activeFileIndex: -1,
+        isLoading: false,
+        expandedPaths: new Set(),
+        searchFiles: vi.fn(),
+        selectRepository: vi.fn(),
+        openRepository: vi.fn(),
+        selectFile: vi.fn(),
+        switchToTab: vi.fn(),
+        closeTab: vi.fn(),
+        closeOthers: vi.fn(),
+        updateFileContent: vi.fn(),
+        closeRepository: vi.fn(),
+        refreshFile: vi.fn(),
+        refreshFileTree: vi.fn(),
+        loadDirectoryChildren: vi.fn(),
+        closeAllFiles: vi.fn(),
+        createFile: vi.fn(),
+        renameFile: vi.fn(),
+        toggleExpansion: vi.fn(),
+        getRecentFiles: vi.fn(),
+      };
+      return selector ? selector(state) : state;
+    });
+
+    render(<RepositoryLayout />);
+
+    expect(screen.getByText('No Repository Open')).toBeInTheDocument();
+  });
+
+  it('should show task sidebar when no repo and default project selected', () => {
+    vi.mocked(useSettingsStore).mockImplementation((selector: any) => {
+      const state = {
+        project: DEFAULT_PROJECT,
+        language: 'en',
+      };
+      return selector ? selector(state) : state;
+    });
+
+    vi.mocked(useRepositoryStore).mockImplementation((selector: any) => {
+      const state = {
+        rootPath: null,
+        fileTree: null,
+        openFiles: [],
+        activeFileIndex: -1,
+        isLoading: false,
+        expandedPaths: new Set(),
+        searchFiles: vi.fn(),
+        selectRepository: vi.fn(),
+        openRepository: vi.fn(),
+        selectFile: vi.fn(),
+        switchToTab: vi.fn(),
+        closeTab: vi.fn(),
+        closeOthers: vi.fn(),
+        updateFileContent: vi.fn(),
+        closeRepository: vi.fn(),
+        refreshFile: vi.fn(),
+        refreshFileTree: vi.fn(),
+        loadDirectoryChildren: vi.fn(),
+        closeAllFiles: vi.fn(),
+        createFile: vi.fn(),
+        renameFile: vi.fn(),
+        toggleExpansion: vi.fn(),
+        getRecentFiles: vi.fn(),
+      };
+      return selector ? selector(state) : state;
+    });
+
+    render(<RepositoryLayout />);
+
+    expect(screen.queryByText('No Repository Open')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Tasks')).toBeInTheDocument();
+  });
+
+  it('should keep sidebar and chat panel sizing consistent between default and repository projects', () => {
+    vi.mocked(useSettingsStore).mockImplementation((selector: any) => {
+      const state = {
+        project: DEFAULT_PROJECT,
+        language: 'en',
+      };
+      return selector ? selector(state) : state;
+    });
+
+    vi.mocked(useRepositoryStore).mockImplementation((selector: any) => {
+      const state = {
+        rootPath: null,
+        fileTree: null,
+        openFiles: [],
+        activeFileIndex: -1,
+        isLoading: false,
+        expandedPaths: new Set(),
+        searchFiles: vi.fn(),
+        selectRepository: vi.fn(),
+        openRepository: vi.fn(),
+        selectFile: vi.fn(),
+        switchToTab: vi.fn(),
+        closeTab: vi.fn(),
+        closeOthers: vi.fn(),
+        updateFileContent: vi.fn(),
+        closeRepository: vi.fn(),
+        refreshFile: vi.fn(),
+        refreshFileTree: vi.fn(),
+        loadDirectoryChildren: vi.fn(),
+        closeAllFiles: vi.fn(),
+        createFile: vi.fn(),
+        renameFile: vi.fn(),
+        toggleExpansion: vi.fn(),
+        getRecentFiles: vi.fn(),
+      };
+      return selector ? selector(state) : state;
+    });
+
+    vi.mocked(ResizablePanel).mockClear();
+    const { unmount } = render(<RepositoryLayout />);
+    const defaultSidebarSizing = getPanelSizingByOrder(1);
+    // In default project (no repository), chat panel is order 2
+    const defaultChatSizing = getPanelSizingByOrder(2);
+
+    expect(defaultSidebarSizing.defaultSize).toBeDefined();
+    expect(defaultChatSizing.defaultSize).toBeDefined();
+
+    unmount();
+
+    vi.mocked(ResizablePanel).mockClear();
+    vi.mocked(useSettingsStore).mockImplementation((selector: any) => {
+      const state = {
+        project: 'project-1',
+        language: 'en',
+      };
+      return selector ? selector(state) : state;
+    });
+
+    vi.mocked(useRepositoryStore).mockImplementation((selector: any) => {
+      const state = {
+        rootPath: '/test/path',
+        fileTree: {
+          name: 'root',
+          path: '/test/path',
+          is_directory: true,
+          children: [],
+        },
+        openFiles: [],
+        activeFileIndex: -1,
+        isLoading: false,
+        expandedPaths: new Set(),
+        searchFiles: vi.fn(),
+        selectRepository: vi.fn(),
+        openRepository: vi.fn(),
+        selectFile: vi.fn(),
+        switchToTab: vi.fn(),
+        closeTab: vi.fn(),
+        closeOthers: vi.fn(),
+        updateFileContent: vi.fn(),
+        closeRepository: vi.fn(),
+        refreshFile: vi.fn(),
+        refreshFileTree: vi.fn(),
+        loadDirectoryChildren: vi.fn(),
+        closeAllFiles: vi.fn(),
+        createFile: vi.fn(),
+        renameFile: vi.fn(),
+        toggleExpansion: vi.fn(),
+        getRecentFiles: vi.fn(),
+      };
+      return selector ? selector(state) : state;
+    });
+
+    render(<RepositoryLayout />);
+
+    const repoSidebarSizing = getPanelSizingByOrder(1);
+    // In repository project, chat panel is order 3 (since middle panel exists with order 2)
+    const repoChatSizing = getPanelSizingByOrder(3);
+
+    expect(defaultSidebarSizing.defaultSize).toBe(repoSidebarSizing.defaultSize);
+    expect(defaultChatSizing.defaultSize).toBe(repoChatSizing.defaultSize);
+    expect(Number(defaultSidebarSizing.defaultSize) + Number(defaultChatSizing.defaultSize)).toBe(100);
   });
 });

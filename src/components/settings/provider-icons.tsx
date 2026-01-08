@@ -52,7 +52,6 @@ export const PROVIDER_ICONS: Record<string, ComponentType<IconProps>> = {
   zhipu: createImageIcon('/icons/providers/zhipu.png', 'Zhipu AI'),
   github_copilot: createImageIcon('/icons/providers/github-copilot.svg', 'GitHub Copilot', true),
   zai: createImageIcon('/icons/providers/zai.svg', 'ZAI', true),
-  opencode: createImageIcon('/icons/providers/opencode.svg', 'OpenCode Zen', true),
 };
 
 // Provider icon component

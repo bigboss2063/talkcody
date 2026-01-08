@@ -19,6 +19,7 @@ mod oauth_callback_server;
 mod script_executor;
 mod search;
 mod terminal;
+mod walker;
 mod websocket;
 mod window_manager;
 
@@ -222,9 +223,18 @@ fn create_project_window(
         is_new_window,
     );
     if result.is_ok() {
-        // System tray is now used for dock menu (handled in setup)
+        // Refresh dock menu to show the updated recent projects list
+        // This spawns the refresh task without blocking
+        tauri::async_runtime::spawn(async move {
+            dock_menu::refresh_dock_menu().await;
+        });
     }
     result
+}
+
+#[tauri::command]
+async fn refresh_dock_menu() {
+    dock_menu::refresh_dock_menu().await;
 }
 
 #[tauri::command]
@@ -727,6 +737,7 @@ pub fn run() {
             focus_project_window,
             close_project_window,
             update_window_project,
+            refresh_dock_menu,
             start_window_file_watching,
             stop_window_file_watching,
             activate_app,

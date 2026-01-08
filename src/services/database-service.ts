@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger';
 import { MCPServerService } from '@/lib/mcp/mcp-server-service';
 import type { MessageAttachment } from '@/types/agent';
 import { ProjectService } from './database/project-service';
+import { type RecentFile, RecentFilesService } from './database/recent-files-service';
+import { type RecentProject, RecentProjectsService } from './database/recent-projects-service';
 import { TaskService } from './database/task-service';
 import { loadDatabase, type TursoClient } from './database/turso-client';
 import { TursoDatabaseInit } from './database/turso-database-init';
@@ -31,6 +33,8 @@ export class DatabaseService {
   private projectService: ProjectService | null = null;
   private taskService: TaskService | null = null;
   private mcpServerService: MCPServerService | null = null;
+  private recentFilesService: RecentFilesService | null = null;
+  private recentProjectsService: RecentProjectsService | null = null;
 
   private async internalInitialize(): Promise<void> {
     if (this.isInitialized) return;
@@ -47,6 +51,8 @@ export class DatabaseService {
       this.projectService = new ProjectService(this.db);
       this.taskService = new TaskService(this.db);
       this.mcpServerService = new MCPServerService(this.db);
+      this.recentFilesService = new RecentFilesService(this.db);
+      this.recentProjectsService = new RecentProjectsService(this.db);
 
       this.isInitialized = true;
       logger.info('Turso database initialized successfully');
@@ -367,6 +373,56 @@ export class DatabaseService {
     await db.execute('DELETE FROM active_skills WHERE skill_id = $1', [skillId]);
     logger.info(`Removed active skill: ${skillId}`);
   }
+
+  // Recent Files methods
+  async addRecentFile(filePath: string, repositoryPath: string): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.recentFilesService) throw new Error('Recent files service not initialized');
+    return this.recentFilesService.addRecentFile(filePath, repositoryPath);
+  }
+
+  async getRecentFiles(repositoryPath: string, limit = 50): Promise<RecentFile[]> {
+    await this.ensureInitialized();
+    if (!this.recentFilesService) throw new Error('Recent files service not initialized');
+    return this.recentFilesService.getRecentFiles(repositoryPath, limit);
+  }
+
+  async clearRecentFiles(repositoryPath: string): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.recentFilesService) throw new Error('Recent files service not initialized');
+    return this.recentFilesService.clearRecentFiles(repositoryPath);
+  }
+
+  // Recent Projects methods (for dock menu)
+  async trackProjectOpened(
+    projectId: string,
+    projectName: string,
+    rootPath: string
+  ): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.recentProjectsService) throw new Error('Recent projects service not initialized');
+    return this.recentProjectsService.trackProjectOpened(projectId, projectName, rootPath);
+  }
+
+  async getRecentProjects(limit = 5): Promise<RecentProject[]> {
+    await this.ensureInitialized();
+    if (!this.recentProjectsService) throw new Error('Recent projects service not initialized');
+    return this.recentProjectsService.getRecentProjects(limit);
+  }
+
+  async removeRecentProject(projectId: string): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.recentProjectsService) throw new Error('Recent projects service not initialized');
+    return this.recentProjectsService.removeProject(projectId);
+  }
+
+  async clearRecentProjects(): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.recentProjectsService) throw new Error('Recent projects service not initialized');
+    return this.recentProjectsService.clearRecentProjects();
+  }
 }
+
+export type { RecentFile, RecentProject };
 
 export const databaseService = new DatabaseService();

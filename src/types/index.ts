@@ -54,6 +54,7 @@ export type {
   CustomProviderTestResult,
   CustomProviderType,
 } from './custom-provider';
+export type { CustomToolDefinition, CustomToolPermission, CustomToolUI } from './custom-tool';
 // Database Agent types
 export type {
   Agent,

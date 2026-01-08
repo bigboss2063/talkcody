@@ -29,8 +29,4 @@ export interface ToolWithUI<
   canConcurrent: boolean;
   /** Whether to hide this tool from the UI tool selector */
   hidden?: boolean;
-  /** Whether this tool is in beta/preview */
-  isBeta?: boolean;
-  /** Optional custom label for the beta badge */
-  badgeLabel?: string;
 }

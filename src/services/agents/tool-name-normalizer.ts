@@ -1,6 +1,6 @@
 // src/services/agents/tool-name-normalizer.ts
 import { logger } from '@/lib/logger';
-import { getAllToolNames } from '@/lib/tools';
+import { getAllToolNamesWithCustom } from '@/lib/tools';
 
 /**
  * Validates if a tool name follows the required pattern for AI providers
@@ -195,7 +195,7 @@ export function normalizeToolName(toolName: string): string | null {
   }
 
   // Check if the cleaned name matches any registered tool names
-  const validToolNames = getAllToolNames();
+  const validToolNames = getAllToolNamesWithCustom();
   if (validToolNames.includes(cleaned as any)) {
     logger.info('[ToolNameNormalizer] Cleaned tool name matches a registered tool', {
       originalToolName: toolName,

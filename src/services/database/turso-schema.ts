@@ -121,6 +121,17 @@ export class TursoSchema {
         created_at INTEGER NOT NULL
       )
     `);
+
+    // Recent files table (tracks recently opened files per repository)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS recent_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_path TEXT NOT NULL,
+        repository_path TEXT NOT NULL,
+        opened_at INTEGER NOT NULL,
+        UNIQUE(file_path, repository_path)
+      )
+    `);
   }
 
   /**
@@ -317,6 +328,11 @@ export class TursoSchema {
     );
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_conversation_skills_priority ON conversation_skills(conversation_id, priority DESC)'
+    );
+
+    // Recent files indexes
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recent_files_repository ON recent_files(repository_path, opened_at DESC)'
     );
   }
 

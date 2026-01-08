@@ -27,6 +27,18 @@ export default defineConfig(() => ({
     },
   },
 
+  optimizeDeps: {
+    // Exclude test-only or native deps from pre-bundling to avoid esbuild resolution errors.
+    exclude: [
+      '@playwright/test',
+      'playwright-core',
+      'chromium-bidi',
+      'msw',
+      '@mswjs/interceptors',
+      'fsevents',
+    ],
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

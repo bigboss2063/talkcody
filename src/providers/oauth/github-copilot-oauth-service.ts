@@ -9,12 +9,8 @@ import { simpleFetch } from '@/lib/tauri-fetch';
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-// OAuth constants from SST opencode-copilot-auth
 const CLIENT_ID = 'Iv1.b507a08c87ecfe98';
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
-// Device code and copilot API URL are constructed dynamically based on domain
-const _DEVICE_CODE_URL = 'https://github.com/login/device/code';
-const _COPILOT_API_KEY_URL = 'https://api.github.com/copilot_internal/v2/token';
 
 // Copilot headers for API requests
 export const COPILOT_HEADERS = {

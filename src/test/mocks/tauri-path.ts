@@ -6,11 +6,13 @@ import { vi } from 'vitest';
 
 const DEFAULT_APP_DATA_DIR = '/test/app-data';
 const _DEFAULT_ROOT = '/test/root';
+const _DEFAULT_HOME_DIR = '/test/home';
 
 export const createMockTauriPath = (
   overrides: {
     normalize?: (path: string) => string | Promise<string>;
     appDataDir?: string;
+    homeDir?: string;
     join?: (...paths: string[]) => string | Promise<string>;
     dirname?: (path: string) => string | Promise<string>;
     isAbsolute?: (path: string) => boolean | Promise<boolean>;
@@ -18,6 +20,7 @@ export const createMockTauriPath = (
 ) => ({
   normalize: vi.fn().mockImplementation(overrides.normalize ?? ((path: string) => path)),
   appDataDir: vi.fn().mockResolvedValue(overrides.appDataDir ?? DEFAULT_APP_DATA_DIR),
+  homeDir: vi.fn().mockResolvedValue(overrides.homeDir ?? _DEFAULT_HOME_DIR),
   join: vi.fn().mockImplementation(
     overrides.join ??
       ((...paths: string[]) => {

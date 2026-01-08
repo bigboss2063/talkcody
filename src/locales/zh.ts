@@ -181,6 +181,7 @@ const zh: LocaleDefinition = {
       about: '关于',
       general: '常规',
       language: '语言',
+      customTools: '自定义工具',
     },
     account: {
       title: '账户设置',
@@ -489,6 +490,9 @@ const zh: LocaleDefinition = {
       lookingFor: '查找:',
       noFilesContainAllKeywords: '没有文件包含所有关键词:',
       matchingAll: '（匹配全部:',
+      recentFiles: '最近打开的文件',
+      noRecentFiles: '暂无最近文件',
+      recentFilesHint: '您最近打开的文件将显示在这里',
     },
     about: {
       title: '关于 TalkCody',
@@ -532,6 +536,20 @@ const zh: LocaleDefinition = {
       customPathHint: '正在使用自定义路径。点击重置以使用默认路径。',
       defaultPathHint: '正在使用默认路径：{path}',
       pathPreview: '示例 worktree 路径：',
+    },
+    customTools: {
+      title: '自定义工具',
+      description:
+        '从自定义目录 .talkcody/tools、工作区 .talkcody/tools 或用户目录 ~/.talkcody/tools 加载工具。',
+      locationLabel: '工具目录',
+      selectDirectory: '选择目录',
+      customDirectoryLabel: '自定义目录',
+      customDirectoryUnset: '未设置（将使用工作区与用户目录）',
+      sourcesHint:
+        '扫描顺序：自定义目录 .talkcody/tools > 工作区 .talkcody/tools > 用户目录 ~/.talkcody/tools',
+      workspaceDirectoryLabel: '工作区目录',
+      homeDirectoryLabel: '用户目录',
+      empty: '未发现自定义工具。',
     },
   },
 

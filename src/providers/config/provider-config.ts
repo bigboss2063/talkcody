@@ -26,7 +26,7 @@ export const PROVIDER_CONFIGS: ProviderRegistry = {
     apiKeyName: 'ANTHROPIC_API_KEY',
     required: false,
     type: 'custom',
-    supportsOAuth: true, // Supports Claude Pro/Max OAuth authentication
+    supportsOAuth: false,
     createProvider: (apiKey: string, baseUrl?: string) =>
       createAnthropic({
         apiKey,
@@ -248,21 +248,6 @@ export const PROVIDER_CONFIGS: ProviderRegistry = {
         apiKey,
         name: 'moonshot',
         baseURL: 'https://api.moonshot.cn/v1',
-        fetch: streamFetch as typeof fetch,
-      }),
-  },
-
-  opencode: {
-    id: 'opencode',
-    name: 'OpenCode Zen',
-    apiKeyName: 'OPENCODE_API_KEY',
-    required: false,
-    type: 'openai-compatible',
-    createProvider: (apiKey: string) =>
-      createOpenAICompatible({
-        apiKey,
-        name: 'opencode',
-        baseURL: 'https://opencode.ai/zen/v1',
         fetch: streamFetch as typeof fetch,
       }),
   },

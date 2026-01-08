@@ -51,49 +51,27 @@ export function normalizeModel(model: string | undefined): string {
   // Strip provider prefix if present (e.g., "openai/gpt-5-codex" → "gpt-5-codex")
   const modelId = model.includes('/') ? (model.split('/').pop() ?? model) : model;
   const normalized = modelId.toLowerCase();
-
   if (normalized.includes('gpt-5.1-codex-max') || normalized.includes('gpt 5.1 codex max')) {
     return 'gpt-5.1-codex-max';
-  }
-  if (normalized.includes('gpt-5.1-codex-mini') || normalized.includes('gpt 5.1 codex mini')) {
-    return 'gpt-5.1-codex-mini';
-  }
-  if (normalized.includes('gpt-5.1-codex') || normalized.includes('gpt 5.1 codex')) {
-    return 'gpt-5.1-codex';
   }
   // Default fallback - use Codex for best tool support
   return 'gpt-5.2-codex';
 }
 
-/**
- * Configure reasoning parameters based on model variant
- */
 export function getReasoningConfig(modelName: string | undefined): ReasoningConfig {
   const normalizedName = modelName?.toLowerCase() ?? '';
 
-  // Model capability checks
-  const isGpt52Codex =
-    normalizedName.includes('gpt-5.2-codex') || normalizedName.includes('gpt 5.2 codex');
-  const isGpt52General =
-    (normalizedName.includes('gpt-5.2') || normalizedName.includes('gpt 5.2')) && !isGpt52Codex;
-  const isCodexMax = normalizedName.includes('codex-max') || normalizedName.includes('codex max');
-  const isCodexMini =
-    normalizedName.includes('codex-mini') ||
-    normalizedName.includes('codex mini') ||
-    normalizedName.includes('codex-mini-latest');
+  const isGpt52CodexHigh = normalizedName === 'gpt-5.2-codex-high';
+  const isGpt52Codex = normalizedName === 'gpt-5.2-codex';
+  const isCodexMax = normalizedName === 'gpt-5.1-codex-max';
 
   // GPT 5.2, GPT 5.2 Codex, and Codex Max support xhigh reasoning
-  const supportsXhigh = isGpt52General || isGpt52Codex || isCodexMax;
+  const supportsXhigh = isGpt52CodexHigh || isGpt52Codex || isCodexMax;
 
-  // Default based on model type
-  const defaultEffort: ReasoningConfig['effort'] = isCodexMini
-    ? 'medium'
-    : supportsXhigh
-      ? 'high'
-      : 'medium';
-
-  // Use default effort (user config not supported in this simplified version)
-  const effort = defaultEffort;
+  let effort: ReasoningConfig['effort'] = 'medium';
+  if (isGpt52CodexHigh || supportsXhigh) {
+    effort = 'high';
+  }
 
   return {
     effort,
@@ -254,7 +232,7 @@ export async function transformRequestBody(body: CodexRequestBody): Promise<Code
   }
 
   // Configure reasoning
-  const reasoningConfig = getReasoningConfig(normalizedModel);
+  const reasoningConfig = getReasoningConfig(originalModel);
   body.reasoning = {
     ...body.reasoning,
     ...reasoningConfig,
@@ -272,13 +250,5 @@ export async function transformRequestBody(body: CodexRequestBody): Promise<Code
   // Remove unsupported parameters
   body.max_output_tokens = undefined;
   body.max_completion_tokens = undefined;
-
-  logger.info('[CodexTransformer] Request transformed', {
-    model: body.model,
-    hasInstructions: !!body.instructions,
-    inputCount: body.input?.length,
-    toolsCount: body.tools?.length,
-  });
-
   return body;
 }

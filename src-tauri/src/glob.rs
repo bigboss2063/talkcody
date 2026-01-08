@@ -1,8 +1,6 @@
-use crate::constants::should_exclude_dir;
-use ignore::WalkBuilder;
+use crate::walker::{validate_path_in_workspace, WalkerConfig, WorkspaceWalker};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::ffi::OsStr;
 use std::time::UNIX_EPOCH;
 
 /// Default maximum number of results to return from glob search
@@ -47,29 +45,11 @@ impl HighPerformanceGlob {
             return Ok(vec![]);
         }
 
-        // Use sequential file collection with ignore crate for simplicity and correctness
-        let mut walker_builder = WalkBuilder::new(root_path);
-
-        // Configure walker to include hidden directories like .talkcody
-        // Disable standard_filters to allow traversal of hidden directories
-        // standard_filters(false) disables the default behavior that skips hidden files/dirs
-        walker_builder
-            .standard_filters(false)
-            .parents(true)
-            .max_depth(Some(20))
-            .filter_entry(|entry| {
-                // Exclude common directories that should be skipped (node_modules, .git, etc.)
-                // Note: We don't exclude hidden directories here because users may want to
-                // search within hidden directories like .talkcody, .cursor, etc.
-                if entry.path().is_dir() {
-                    if let Some(name) = entry.path().file_name().and_then(OsStr::to_str) {
-                        return !should_exclude_dir(name);
-                    }
-                }
-                true
-            });
-
-        let walker = walker_builder.build();
+        // Use unified walker module with glob-optimized configuration
+        let config = WalkerConfig::for_glob(root_path);
+        let workspace_walker = WorkspaceWalker::new(root_path, config);
+        let workspace_root = workspace_walker.workspace_root().cloned();
+        let walker = workspace_walker.build();
         let mut results = Vec::new();
 
         for result in walker {
@@ -95,6 +75,13 @@ impl HighPerformanceGlob {
                         .canonicalize()
                         .map(|p| p.to_string_lossy().to_string())
                         .unwrap_or_else(|_| path_str.clone());
+
+                    // Validate path stays within workspace (security check)
+                    if let Some(ref ws_root) = workspace_root {
+                        if !validate_path_in_workspace(path, ws_root) {
+                            continue;
+                        }
+                    }
 
                     // Get modification time
                     let modified_time = if let Ok(metadata) = path.metadata() {

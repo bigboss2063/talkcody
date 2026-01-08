@@ -75,6 +75,16 @@ Download TalkCody for your platform:
 
 
 
+## Custom Tools
+
+You can load your own tools from local directories:
+
+- A custom directory configured in **Settings → Custom Tools**
+- The current workspace directory: `.talkcody/tools`
+- The user directory: `~/.talkcody/tools`
+
+After adding or updating tool files, open **Settings → Custom Tools** and click **Refresh** to reload them. Custom directory tools override tools with the same name from workspace or user directories.
+
 ## Development
 
 Want to build from source or contribute?

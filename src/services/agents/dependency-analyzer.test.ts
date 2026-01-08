@@ -51,6 +51,16 @@ vi.mock('@/lib/tools', () => ({
     'grepSearch',
     'webSearch',
   ]),
+  getAllToolNamesWithCustom: vi.fn(() => [
+    'readFile',
+    'writeFile',
+    'editFile',
+    'codeSearch',
+    'listFiles',
+    'callAgent',
+    'grepSearch',
+    'webSearch',
+  ]),
   getToolMetadata: vi.fn((toolName: string) => ({
     category: toolName === 'readFile' ? 'read' 
              : toolName === 'codeSearch' ? 'read'

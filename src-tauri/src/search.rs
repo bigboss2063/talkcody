@@ -1,8 +1,8 @@
-use crate::constants::{is_code_extension, is_code_filename, should_exclude_dir};
+use crate::constants::{is_code_extension, is_code_filename};
+use crate::walker::{WalkerConfig, WorkspaceWalker};
 use grep::regex::{RegexMatcher, RegexMatcherBuilder};
 use grep::searcher::sinks::UTF8;
 use grep::searcher::{BinaryDetection, SearcherBuilder};
-use ignore::WalkBuilder;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -185,49 +185,16 @@ impl RipgrepSearch {
                 .map_err(|e| format!("Failed to create regex matcher: {}", e))?,
         );
 
-        // Build walker with proper gitignore support and optimizations
-        let mut walker_builder = WalkBuilder::new(root_path);
+        // Build walker with unified WorkspaceWalker for content search
+        let additional_excludes: Vec<String> = self
+            .exclude_dirs
+            .clone()
+            .map(|dirs| dirs.into_iter().collect())
+            .unwrap_or_default();
 
-        walker_builder
-            .hidden(true) // Skip hidden files by default
-            .git_ignore(false) // Don't use .gitignore files (search all files)
-            .git_global(false) // Don't use global gitignore
-            .git_exclude(false) // Don't use .git/info/exclude
-            .ignore(true) // Use .ignore files
-            .parents(true) // Search parent directories for ignore files
-            .max_depth(Some(20)); // Reasonable depth limit
-
-        // Add custom exclude directories as overrides if specified
-        if let Some(ref exclude_dirs) = self.exclude_dirs {
-            for dir in exclude_dirs {
-                // Add each exclude directory as an override
-                walker_builder.add_custom_ignore_filename(format!("!{}/", dir));
-            }
-        }
-
-        let exclude_dirs_clone = self.exclude_dirs.clone();
-        let walker = walker_builder
-            .filter_entry(move |entry| {
-                let path = entry.path();
-
-                // Quick directory filtering
-                if path.is_dir() {
-                    let dir_name = path.file_name().and_then(OsStr::to_str).unwrap_or("");
-
-                    // Check custom exclude_dirs
-                    if let Some(ref exclude_dirs) = exclude_dirs_clone {
-                        if exclude_dirs.contains(dir_name) {
-                            return false;
-                        }
-                    }
-
-                    // Check default excluded directories
-                    return !should_exclude_dir(dir_name);
-                }
-
-                true
-            })
-            .build();
+        let config =
+            WalkerConfig::for_content_search().with_additional_excludes(additional_excludes);
+        let walker = WorkspaceWalker::new(root_path, config).build();
 
         // Collect files in parallel batches
         let files: Vec<_> = walker

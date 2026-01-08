@@ -15,6 +15,7 @@ interface GlobalFileSearchProps {
   onSearch: (query: string) => Promise<FileNode[]>;
   onFileSelect: (filePath: string, lineNumber?: number) => void;
   repositoryPath?: string | null;
+  getRecentFiles?: () => Promise<FileNode[]>;
 }
 
 /**
@@ -40,10 +41,12 @@ export function GlobalFileSearch({
   onSearch,
   onFileSelect,
   repositoryPath,
+  getRecentFiles,
 }: GlobalFileSearchProps) {
   const t = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FileNode[]>([]);
+  const [recentFiles, setRecentFiles] = useState<FileNode[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [parsedLineNumber, setParsedLineNumber] = useState<number | undefined>();
@@ -67,19 +70,30 @@ export function GlobalFileSearch({
     [onFileSelect, onClose, parsedLineNumber]
   );
 
-  // Reset state when dialog opens/closes
+  // Reset state when dialog opens/closes and load recent files
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setResults([]);
       setSelectedIndex(0);
       setParsedLineNumber(undefined);
+
+      // Load recent files if getRecentFiles is provided
+      if (getRecentFiles) {
+        getRecentFiles()
+          .then(setRecentFiles)
+          .catch((error) => {
+            logger.error('Failed to load recent files:', error);
+            setRecentFiles([]);
+          });
+      }
+
       // Focus the input when dialog opens
       setTimeout(() => {
         inputRef.current?.focus();
       }, 0);
     }
-  }, [isOpen]);
+  }, [isOpen, getRecentFiles]);
 
   // Note: Matching and scoring logic has been moved to Rust backend for better performance
 
@@ -125,10 +139,13 @@ export function GlobalFileSearch({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
 
+      // Determine which list to use for navigation
+      const activeList = query.trim() ? results : recentFiles;
+
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : prev));
+          setSelectedIndex((prev) => (prev < activeList.length - 1 ? prev + 1 : prev));
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -136,8 +153,8 @@ export function GlobalFileSearch({
           break;
         case 'Enter':
           e.preventDefault();
-          if (results[selectedIndex]) {
-            handleFileSelect(results[selectedIndex]);
+          if (activeList[selectedIndex]) {
+            handleFileSelect(activeList[selectedIndex]);
           }
           break;
         case 'Escape':
@@ -149,11 +166,12 @@ export function GlobalFileSearch({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, results, selectedIndex, onClose, handleFileSelect]);
+  }, [isOpen, query, results, recentFiles, selectedIndex, onClose, handleFileSelect]);
 
   // Scroll selected item into view
   useEffect(() => {
-    if (listRef.current && results.length > 0) {
+    const activeList = query.trim() ? results : recentFiles;
+    if (listRef.current && activeList.length > 0) {
       const selectedElement = listRef.current.children[selectedIndex] as HTMLElement;
       if (selectedElement) {
         selectedElement.scrollIntoView({
@@ -162,7 +180,7 @@ export function GlobalFileSearch({
         });
       }
     }
-  }, [selectedIndex, results]);
+  }, [selectedIndex, query, results, recentFiles]);
 
   const getRelativePath = (fullPath: string) => {
     if (!repositoryPath) return fullPath;
@@ -295,6 +313,49 @@ export function GlobalFileSearch({
                   ))}
                 </div>
               )
+            ) : recentFiles.length > 0 ? (
+              <div>
+                <div className="border-b bg-gray-50 px-4 py-2 dark:bg-gray-800">
+                  <p className="font-medium text-gray-700 text-sm dark:text-gray-300">
+                    {t.Settings.search.recentFiles}
+                  </p>
+                </div>
+                <div className="py-2">
+                  {recentFiles.map((file, index) => (
+                    <button
+                      type="button"
+                      className={cn(
+                        'flex w-full cursor-pointer items-center border-0 px-4 py-3 text-left transition-colors',
+                        index === selectedIndex
+                          ? 'bg-blue-50 dark:bg-blue-900/30'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                      )}
+                      key={file.path}
+                      onClick={() => handleFileSelect(file)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          handleFileSelect(file);
+                        }
+                      }}
+                    >
+                      <File className="mr-3 h-4 w-4 flex-shrink-0 text-blue-600" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-sm">{file.name}</p>
+                        <p className="truncate text-gray-500 text-xs">
+                          {getRelativePath(file.path)}
+                        </p>
+                      </div>
+                      {index === selectedIndex && (
+                        <div className="ml-2 text-gray-400 text-xs">
+                          <kbd className="rounded bg-gray-100 px-1 py-0.5 dark:bg-gray-700">
+                            Enter
+                          </kbd>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="p-8 text-center text-gray-500">
                 <Search className="mx-auto mb-4 h-12 w-12 text-gray-300" />

@@ -23,6 +23,24 @@ vi.mock('@/lib/tools', () => ({
     'executeSkillScript',
     'githubPR',
   ]),
+  getAllToolNamesWithCustom: vi.fn(() => [
+    'readFile',
+    'writeFile',
+    'editFile',
+    'glob',
+    'codeSearch',
+    'listFiles',
+    'bash',
+    'callAgent',
+    'todoWrite',
+    'webSearch',
+    'webFetch',
+    'askUserQuestions',
+    'exitPlanMode',
+    'getSkill',
+    'executeSkillScript',
+    'githubPR',
+  ]),
 }));
 
 describe('ToolNameNormalizer', () => {

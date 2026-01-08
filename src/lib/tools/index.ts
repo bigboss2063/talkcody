@@ -9,6 +9,9 @@
  * That's it! The tool will be automatically registered and available.
  */
 
+import { loadCustomToolsForRegistry } from '@/services/tools/custom-tool-service';
+import { getEffectiveWorkspaceRoot } from '@/services/workspace-root-service';
+import { settingsManager } from '@/stores/settings-store';
 import type { ToolWithUI } from '@/types/tool';
 import { logger } from '../logger';
 import { registerToolUIRenderers } from '../tool-adapter';
@@ -42,10 +45,6 @@ export interface ToolMetadata {
   getTargetFile?: (input: Record<string, unknown>) => string | string[] | null;
   /** Whether to render "doing" UI for this tool. Set to false for fast operations to avoid UI flash. Default: true */
   renderDoingUI?: boolean;
-  /** Whether this tool is in beta/preview */
-  isBeta?: boolean;
-  /** Optional custom label for the beta badge */
-  badgeLabel?: string;
 }
 
 export interface ToolDefinition {
@@ -234,6 +233,7 @@ export type ToolName = keyof typeof TOOL_DEFINITIONS;
 // Cache for loaded tools
 let toolsCache: Record<string, ToolWithUI> | null = null;
 let loadingPromise: Promise<Record<string, ToolWithUI>> | null = null;
+let customToolsCache: Record<string, ToolWithUI> = {};
 
 /**
  * Check if tools have been loaded (without throwing)
@@ -279,6 +279,25 @@ export async function loadAllTools(): Promise<Record<string, ToolWithUI>> {
       } catch (error) {
         logger.error(`Failed to load tool "${toolName}":`, error);
       }
+    }
+
+    try {
+      const rootPath = await getEffectiveWorkspaceRoot('');
+      await settingsManager.initialize();
+      const customDirectory = settingsManager.get('custom_tools_dir');
+
+      const customState = await loadCustomToolsForRegistry({
+        workspaceRoot: rootPath || undefined,
+        customDirectory: customDirectory || undefined,
+      });
+
+      for (const tool of customState.tools) {
+        registerToolUIRenderers(tool, tool.name);
+        tools[tool.name] = tool;
+        customToolsCache[tool.name] = tool;
+      }
+    } catch (error) {
+      logger.warn('Failed to load custom tools during registry load', error);
     }
 
     logger.info(`Loaded ${Object.keys(tools).length} tools successfully into registry`);
@@ -359,11 +378,24 @@ export function getAllToolNames(): ToolName[] {
   return Object.keys(TOOL_DEFINITIONS) as ToolName[];
 }
 
+export function getAllToolNamesWithCustom(): string[] {
+  const base = getAllToolNames() as string[];
+  const custom = Object.keys(customToolsCache);
+  return [...new Set([...base, ...custom])];
+}
+
+export function replaceCustomToolsCache(tools: Record<string, ToolWithUI>) {
+  customToolsCache = { ...tools };
+  if (toolsCache) {
+    toolsCache = { ...toolsCache, ...customToolsCache };
+  }
+}
+
 /**
  * Check if a tool name is valid
  */
-export function isValidToolName(toolName: string): toolName is ToolName {
-  return toolName in TOOL_DEFINITIONS;
+export function isValidToolName(toolName: string): boolean {
+  return toolName in TOOL_DEFINITIONS || toolName in customToolsCache;
 }
 
 /**
@@ -374,8 +406,6 @@ export async function getToolsForUI(): Promise<
     id: string;
     label: string;
     ref: ToolWithUI;
-    isBeta: boolean;
-    badgeLabel?: string;
   }>
 > {
   const tools = await loadAllTools();
@@ -384,8 +414,6 @@ export async function getToolsForUI(): Promise<
     id: string;
     label: string;
     ref: ToolWithUI;
-    isBeta: boolean;
-    badgeLabel?: string;
   }> = [];
 
   const entries = Object.entries(TOOL_DEFINITIONS) as Array<[string, ToolDefinition]>;
@@ -393,16 +421,20 @@ export async function getToolsForUI(): Promise<
   for (const [id, definition] of entries) {
     const tool = tools[id];
     if (tool !== undefined) {
-      const isBeta = Boolean(definition.metadata.isBeta ?? tool.isBeta);
-      const badgeLabel = definition.metadata.badgeLabel ?? tool.badgeLabel;
       result.push({
         id,
         label: definition.label,
         ref: tool,
-        isBeta,
-        badgeLabel,
       });
     }
+  }
+
+  for (const [toolName, tool] of Object.entries(customToolsCache)) {
+    result.push({
+      id: toolName,
+      label: toolName,
+      ref: tool,
+    });
   }
 
   return result;
@@ -416,8 +448,6 @@ export function getToolsForUISync(): Array<{
   id: string;
   label: string;
   ref: ToolWithUI;
-  isBeta: boolean;
-  badgeLabel?: string;
 }> {
   const tools = getAllToolsSync();
 
@@ -425,8 +455,6 @@ export function getToolsForUISync(): Array<{
     id: string;
     label: string;
     ref: ToolWithUI;
-    isBeta: boolean;
-    badgeLabel?: string;
   }> = [];
 
   const entries = Object.entries(TOOL_DEFINITIONS) as Array<[string, ToolDefinition]>;
@@ -434,16 +462,20 @@ export function getToolsForUISync(): Array<{
   for (const [id, definition] of entries) {
     const tool = tools[id];
     if (tool !== undefined) {
-      const isBeta = Boolean(definition.metadata.isBeta ?? tool.isBeta);
-      const badgeLabel = definition.metadata.badgeLabel ?? tool.badgeLabel;
       result.push({
         id,
         label: definition.label,
         ref: tool,
-        isBeta,
-        badgeLabel,
       });
     }
+  }
+
+  for (const [toolName, tool] of Object.entries(customToolsCache)) {
+    result.push({
+      id: toolName,
+      label: toolName,
+      ref: tool,
+    });
   }
 
   return result;
