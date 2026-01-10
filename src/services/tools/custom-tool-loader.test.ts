@@ -89,8 +89,8 @@ describe('custom-tool-loader multi-directory support', () => {
     const workspaceDir = '/workspace/.talkcody/tools';
     const userDir = '/home/.talkcody/tools';
 
-    registerDirectory(workspaceDir, ['shared.ts', 'ws-only.ts']);
-    registerDirectory(userDir, ['shared.ts', 'home.ts']);
+    registerDirectory(workspaceDir, ['shared-tool.ts', 'ws-only-tool.ts']);
+    registerDirectory(userDir, ['shared-tool.ts', 'home-tool.ts']);
 
     const sharedWorkspace: CustomToolDefinition = {
       name: 'shared',

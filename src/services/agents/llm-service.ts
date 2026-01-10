@@ -584,7 +584,7 @@ export class LLMService {
                   delayInMs: 30, // optional: defaults to 10ms
                   chunking: 'line', // optional: defaults to 'word'
                 }),
-                maxOutputTokens: 64000,
+                maxOutputTokens: 15000,
                 providerOptions,
                 onFinish: async ({ finishReason, usage, steps, totalUsage, response, request }) => {
                   const requestDuration = Date.now() - requestStartTime;

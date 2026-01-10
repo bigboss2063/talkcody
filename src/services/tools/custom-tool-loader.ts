@@ -1,4 +1,4 @@
-import { homeDir, join, normalize } from '@tauri-apps/api/path';
+import { dirname, homeDir, join, normalize } from '@tauri-apps/api/path';
 import { exists, readDir, readTextFile } from '@tauri-apps/plugin-fs';
 import { logger } from '@/lib/logger';
 import type { CustomToolDefinition } from '@/types/custom-tool';
@@ -31,7 +31,6 @@ export interface CustomToolLoadOptions {
 
 const CUSTOM_TOOLS_RELATIVE_DIR = '.talkcody/tools';
 const CUSTOM_TOOLS_SUFFIX = `/${CUSTOM_TOOLS_RELATIVE_DIR}`;
-const CUSTOM_TOOL_EXTENSIONS = new Set(['.ts', '.tsx']);
 
 function normalizePathForSuffix(value: string): string {
   return value.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -48,10 +47,7 @@ async function resolveCustomToolsDirectory(customDirectory: string): Promise<str
 }
 
 function hasCustomToolExtension(fileName: string): boolean {
-  for (const ext of CUSTOM_TOOL_EXTENSIONS) {
-    if (fileName.endsWith(ext)) return true;
-  }
-  return false;
+  return /.*[-_]tool\.tsx?$/i.test(fileName);
 }
 
 function getToolNameFromFile(fileName: string): string {
@@ -145,7 +141,8 @@ export async function loadCustomTools(
         try {
           const sourceCode = await readTextFile(filePath);
           const compiled = await compileCustomTool(sourceCode, { filename: entry.name });
-          const moduleUrl = await createCustomToolModuleUrl(compiled, entry.name);
+          const fileDir = await dirname(filePath);
+          const moduleUrl = await createCustomToolModuleUrl(compiled, entry.name, fileDir);
           const definition = await resolveCustomToolDefinition(moduleUrl);
 
           if (!definition || typeof definition !== 'object') {

@@ -14,7 +14,7 @@
  * ```
  */
 
-import { MockLanguageModelV2, simulateReadableStream } from 'ai/test';
+import { MockLanguageModelV3, simulateReadableStream } from 'ai/test';
 
 // ============================================
 // Type Definitions
@@ -64,7 +64,7 @@ export interface ToolCallInput {
  * const errorLLM = createMockLLM({ shouldError: true, errorMessage: 'API error' });
  * ```
  */
-export function createMockLLM(options: MockLLMOptions = {}): MockLanguageModelV2 {
+export function createMockLLM(options: MockLLMOptions = {}): MockLanguageModelV3 {
   const {
     text,
     chunks,
@@ -75,7 +75,7 @@ export function createMockLLM(options: MockLLMOptions = {}): MockLanguageModelV2
   } = options;
 
   if (shouldError) {
-    return new MockLanguageModelV2({
+    return new MockLanguageModelV3({
       doStream: async () => {
         throw new Error(errorMessage);
       },
@@ -88,7 +88,7 @@ export function createMockLLM(options: MockLLMOptions = {}): MockLanguageModelV2
   // If text is provided, automatically convert to chunks
   const finalChunks = chunks ?? (text ? textToChunks(text) : defaultChunks());
 
-  return new MockLanguageModelV2({
+  return new MockLanguageModelV3({
     doStream: async () => ({
       stream: simulateReadableStream({ chunks: finalChunks }),
       rawCall: { rawPrompt: null, rawSettings: {} },
@@ -390,7 +390,7 @@ export function createMockErrorModel(config?: {
     errorOnGenerate = true,
   } = config || {};
 
-  return new MockLanguageModelV2({
+  return new MockLanguageModelV3({
     doStream: async () => {
       if (errorOnStream) {
         throw new Error(errorMessage);

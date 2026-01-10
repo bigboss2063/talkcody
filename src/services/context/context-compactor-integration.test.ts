@@ -13,7 +13,7 @@ vi.mock('@/services/ai/ai-context-compaction', () => ({
   },
 }));
 
-import { MockLanguageModelV2, simulateReadableStream } from 'ai/test';
+import { MockLanguageModelV3, simulateReadableStream } from 'ai/test';
 import type { ModelMessage } from 'ai';
 import * as aiModule from 'ai';
 import { LLMService } from '../agents/llm-service';
@@ -285,7 +285,7 @@ function createMockCompressionModel(config?: {
   const { summary, shouldError, errorMessage, inputTokens = 500, outputTokens = 200 } = config || {};
 
   if (shouldError) {
-    return new MockLanguageModelV2({
+    return new MockLanguageModelV3({
       doGenerate: async () => {
         throw new Error(errorMessage || 'Model error');
       },
@@ -297,7 +297,7 @@ function createMockCompressionModel(config?: {
 
   const response = createCompressionSummaryResponse(summary);
 
-  return new MockLanguageModelV2({
+  return new MockLanguageModelV3({
     doStream: async () => response,
     doGenerate: async () => ({
       rawCall: { rawPrompt: null, rawSettings: {} },

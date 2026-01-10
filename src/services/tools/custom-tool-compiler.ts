@@ -24,13 +24,6 @@ async function ensureSwcReady() {
   return swcReady;
 }
 
-function isBareModule(specifier: string): boolean {
-  if (specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/')) {
-    return false;
-  }
-  return true;
-}
-
 export async function compileCustomTool(
   source: string,
   options: CompileOptions
@@ -70,16 +63,18 @@ function convertCommonJsToAsyncRequire(source: string): string {
 
 export async function createCustomToolModuleUrl(
   compiled: CompileResult,
-  filename: string
+  filename: string,
+  baseDir?: string
 ): Promise<string> {
   const transformed = convertCommonJsToAsyncRequire(compiled.code);
 
   const module = `const __moduleCache = new Map();
+const __baseDir = ${baseDir !== undefined ? JSON.stringify(baseDir) : 'undefined'};
 const __require = async (specifier) => {
   if (__moduleCache.has(specifier)) {
     return __moduleCache.get(specifier);
   }
-  const resolved = await window.__talkcodyResolveCustomToolModule(specifier);
+  const resolved = await window.__talkcodyResolveCustomToolModule(specifier, __baseDir);
   if (!resolved) {
     throw new Error(\`Custom tool import not found: \${specifier}\`);
   }
@@ -112,16 +107,16 @@ export async function resolveCustomToolDefinition(
   return resolved as CustomToolDefinition;
 }
 
-export async function registerCustomToolModuleResolver() {
+export async function registerCustomToolModuleResolver(baseDir?: string) {
   if (typeof window === 'undefined') return;
   if ((window as any).__talkcodyResolveCustomToolModule) return;
 
-  (window as any).__talkcodyResolveCustomToolModule = async (specifier: string) => {
-    if (!isBareModule(specifier)) {
-      throw new Error(`Custom tool import must be a bare specifier: ${specifier}`);
-    }
-
-    return await resolveCustomToolModule(specifier);
+  (window as any).__talkcodyResolveCustomToolModule = async (
+    specifier: string,
+    requestBaseDir?: string
+  ) => {
+    const effectiveBaseDir = requestBaseDir ?? baseDir;
+    return await resolveCustomToolModule(specifier, effectiveBaseDir);
   };
 }
 
