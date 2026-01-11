@@ -25,6 +25,11 @@ export function useTasks(onTaskStart?: (taskId: string, title: string) => void) 
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
+  const normalizeSearch = useCallback((searchTerm?: string) => {
+    const trimmed = searchTerm?.trim() ?? '';
+    return trimmed.length > 0 ? trimmed : '';
+  }, []);
+
   // Get tasks Map from TaskStore (stable reference)
   const tasksMap = useTaskStore((state) => state.tasks);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
@@ -54,39 +59,56 @@ export function useTasks(onTaskStart?: (taskId: string, title: string) => void) 
   const limit = 20;
 
   // Load tasks with pagination (initial load)
-  const loadTasks = useCallback(async (projectId?: string) => {
-    try {
-      setOffset(0);
-      setHasMore(true);
-      const tasks = await taskService.loadTasksWithPagination(projectId, limit, 0, true, true);
-      // Update offset for next load
-      setOffset(tasks.length);
-      // Check if there are more tasks
-      if (tasks.length < limit) {
-        setHasMore(false);
+  const loadTasks = useCallback(
+    async (projectId?: string, searchTerm?: string) => {
+      try {
+        setOffset(0);
+        setHasMore(true);
+        const normalizedSearch = normalizeSearch(searchTerm);
+        const tasks = normalizedSearch
+          ? await taskService.loadTasksWithSearchPagination(
+              normalizedSearch,
+              projectId,
+              limit,
+              0,
+              true,
+              true
+            )
+          : await taskService.loadTasksWithPagination(projectId, limit, 0, true, true);
+        // Update offset for next load
+        setOffset(tasks.length);
+        // Check if there are more tasks
+        if (tasks.length < limit) {
+          setHasMore(false);
+        }
+      } catch (err) {
+        logger.error('Failed to load tasks:', err);
+        setError('Failed to load tasks');
       }
-    } catch (err) {
-      logger.error('Failed to load tasks:', err);
-      setError('Failed to load tasks');
-    }
-  }, []);
+    },
+    [normalizeSearch]
+  );
 
   // Load more tasks (infinite scroll)
   const loadMoreTasks = useCallback(
-    async (projectId?: string) => {
+    async (projectId?: string, searchTerm?: string) => {
       if (loadingMore || !hasMore) return;
 
       setLoadingMore(true);
       try {
-        const tasks = await taskService.loadTasksWithPagination(
-          projectId,
-          limit,
-          offset,
-          false,
-          false
-        );
+        const normalizedSearch = normalizeSearch(searchTerm);
+        const tasks = normalizedSearch
+          ? await taskService.loadTasksWithSearchPagination(
+              normalizedSearch,
+              projectId,
+              limit,
+              offset,
+              false,
+              false
+            )
+          : await taskService.loadTasksWithPagination(projectId, limit, offset, false, false);
         // Update offset for next load
-        setOffset((prev) => prev + limit);
+        setOffset((prev) => prev + tasks.length);
         // Check if there are more tasks
         if (tasks.length < limit) {
           setHasMore(false);
@@ -98,7 +120,7 @@ export function useTasks(onTaskStart?: (taskId: string, title: string) => void) 
         setLoadingMore(false);
       }
     },
-    [offset, hasMore, loadingMore]
+    [offset, hasMore, loadingMore, normalizeSearch]
   );
 
   const loadTask = useCallback(

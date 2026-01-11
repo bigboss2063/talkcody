@@ -40,6 +40,7 @@ vi.mock('@/stores/settings-store', () => ({
 vi.mock('@/services/task-service', () => ({
   taskService: {
     loadTasksWithPagination: vi.fn(),
+    loadTasksWithSearchPagination: vi.fn(),
     loadMessages: vi.fn(),
     createTask: vi.fn(),
     selectTask: vi.fn(),
@@ -126,6 +127,24 @@ describe('useTasks', () => {
     expect(taskService.loadTasksWithPagination).toHaveBeenCalledWith('project1', 20, 0, true, true);
   });
 
+  it('should load tasks with search term', async () => {
+    const { taskService } = await import('@/services/task-service');
+
+    const { result } = renderHook(() => useTasks());
+    await act(async () => {
+      await result.current.loadTasks('project1', 'demo');
+    });
+
+    expect(taskService.loadTasksWithSearchPagination).toHaveBeenCalledWith(
+      'demo',
+      'project1',
+      20,
+      0,
+      true,
+      true
+    );
+  });
+
   it('should handle load tasks error', async () => {
     const { taskService } = await import('@/services/task-service');
     const { logger } = await import('@/lib/logger');
@@ -181,6 +200,24 @@ describe('useTasks', () => {
     });
 
     expect(taskService.loadTasksWithPagination).toHaveBeenCalledWith('project1', 20, 0, false, false);
+  });
+
+  it('should load more tasks with search term', async () => {
+    const { taskService } = await import('@/services/task-service');
+
+    const { result } = renderHook(() => useTasks());
+    await act(async () => {
+      await result.current.loadMoreTasks('project1', 'demo');
+    });
+
+    expect(taskService.loadTasksWithSearchPagination).toHaveBeenCalledWith(
+      'demo',
+      'project1',
+      20,
+      0,
+      false,
+      false
+    );
   });
 
   it('should delete a task', async () => {

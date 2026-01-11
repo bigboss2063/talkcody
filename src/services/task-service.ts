@@ -348,6 +348,48 @@ class TaskService {
     }
   }
 
+  /**
+   * Search tasks with pagination support
+   */
+  async loadTasksWithSearchPagination(
+    searchTerm: string,
+    projectId?: string,
+    limit: number = 20,
+    offset: number = 0,
+    replace: boolean = false,
+    setLoadingState: boolean = true
+  ): Promise<Task[]> {
+    const taskStore = useTaskStore.getState();
+    if (setLoadingState) {
+      taskStore.setLoadingTasks(true);
+    }
+    taskStore.setError(null);
+
+    try {
+      const tasks = await databaseService.searchTasksWithPagination(
+        searchTerm,
+        projectId,
+        limit,
+        offset
+      );
+
+      if (replace) {
+        taskStore.setTasks(tasks);
+      } else {
+        taskStore.addTasks(tasks);
+      }
+      return tasks;
+    } catch (error) {
+      logger.error('[TaskService] Failed to search tasks with pagination:', error);
+      taskStore.setError('Failed to load tasks');
+      throw error;
+    } finally {
+      if (setLoadingState) {
+        taskStore.setLoadingTasks(false);
+      }
+    }
+  }
+
   startNewTask(): void {
     useTaskStore.getState().setCurrentTaskId(null);
   }

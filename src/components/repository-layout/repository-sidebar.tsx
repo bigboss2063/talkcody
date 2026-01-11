@@ -88,6 +88,7 @@ export const RepositorySidebar = memo(function RepositorySidebar({
   );
 
   const [sidebarTaskSearch, setSidebarTaskSearch] = useState('');
+  const [debouncedTaskSearch, setDebouncedTaskSearch] = useState('');
   const stableRunningTaskIds = useStableRunningIds();
 
   // Task data + actions scoped to sidebar to avoid rerenders upstream
@@ -114,32 +115,21 @@ export const RepositorySidebar = memo(function RepositorySidebar({
     useShallow((state) => ({ getWorktreeForTask: state.getWorktreeForTask }))
   );
 
-  // Filter tasks locally in sidebar to avoid re-rendering RepositoryLayout
-  const normalizedTaskSearch = useMemo(
-    () => sidebarTaskSearch.trim().toLowerCase(),
-    [sidebarTaskSearch]
-  );
+  const normalizedTaskSearch = useMemo(() => debouncedTaskSearch.trim(), [debouncedTaskSearch]);
 
-  const filteredTasks = useMemo(() => {
-    const hasSearch = normalizedTaskSearch.length > 0;
-    const hasProject = Boolean(currentProjectId);
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedTaskSearch(sidebarTaskSearch);
+    }, 200);
 
-    if (!hasSearch && !hasProject) {
-      return tasks;
-    }
-
-    return tasks.filter((task) => {
-      const matchesSearch = !hasSearch || task.title.toLowerCase().includes(normalizedTaskSearch);
-      const matchesProject = !hasProject || task.project_id === currentProjectId;
-      return matchesSearch && matchesProject;
-    });
-  }, [tasks, normalizedTaskSearch, currentProjectId]);
+    return () => window.clearTimeout(handle);
+  }, [sidebarTaskSearch]);
 
   useEffect(() => {
     if (sidebarView === SidebarView.TASKS) {
-      loadTasks(currentProjectId || undefined);
+      loadTasks(currentProjectId || undefined, normalizedTaskSearch);
     }
-  }, [sidebarView, currentProjectId, loadTasks]);
+  }, [sidebarView, currentProjectId, normalizedTaskSearch, loadTasks]);
 
   // Keep input controlled externally if provided
   useEffect(() => {
@@ -274,14 +264,16 @@ export const RepositorySidebar = memo(function RepositorySidebar({
 
               <div ref={taskScrollContainerRef} className="flex-1 overflow-auto">
                 <TaskList
-                  tasks={filteredTasks}
+                  tasks={tasks}
                   currentTaskId={currentTaskId ?? undefined}
                   editingId={editingId}
                   editingTitle={editingTitle}
                   loading={tasksLoading}
                   hasMore={hasMore}
                   loadingMore={loadingMore}
-                  onLoadMore={() => loadMoreTasks(currentProjectId || undefined)}
+                  onLoadMore={() =>
+                    loadMoreTasks(currentProjectId || undefined, normalizedTaskSearch)
+                  }
                   getWorktreeForTask={getWorktreeForTask}
                   onCancelEdit={cancelEditing}
                   onTaskSelect={(taskId) => {

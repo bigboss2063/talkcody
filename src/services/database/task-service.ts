@@ -63,6 +63,42 @@ export class TaskService {
     return result;
   }
 
+  async searchTasksWithPagination(
+    searchTerm: string,
+    projectId?: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<Task[]> {
+    const trimmedSearch = searchTerm.trim();
+    let sql = 'SELECT * FROM conversations';
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    const conditions: string[] = [];
+    if (projectId) {
+      conditions.push(`project_id = $${paramIndex}`);
+      params.push(projectId);
+      paramIndex++;
+    }
+
+    if (trimmedSearch.length > 0) {
+      conditions.push(`LOWER(title) LIKE $${paramIndex}`);
+      params.push(`%${trimmedSearch.toLowerCase()}%`);
+      paramIndex++;
+    }
+
+    if (conditions.length > 0) {
+      sql += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    sql += ' ORDER BY updated_at DESC';
+    sql += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await this.db.select<Task[]>(sql, params);
+    return result;
+  }
+
   async getTaskDetails(taskId: string): Promise<Task | null> {
     const result = await this.db.select<Task[]>('SELECT * FROM conversations WHERE id = $1', [
       taskId,

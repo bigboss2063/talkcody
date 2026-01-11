@@ -170,6 +170,17 @@ export class DatabaseService {
     return this.taskService.getTasksWithPagination(projectId, limit, offset);
   }
 
+  async searchTasksWithPagination(
+    searchTerm: string,
+    projectId?: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<import('@/types').Task[]> {
+    await this.ensureInitialized();
+    if (!this.taskService) throw new Error('Task service not initialized');
+    return this.taskService.searchTasksWithPagination(searchTerm, projectId, limit, offset);
+  }
+
   async getTaskDetails(taskId: string): Promise<import('@/types').Task | null> {
     await this.ensureInitialized();
     if (!this.taskService) throw new Error('Task service not initialized');
