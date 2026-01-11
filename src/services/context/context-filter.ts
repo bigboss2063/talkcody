@@ -109,7 +109,7 @@ export class ContextFilter {
    */
   private getExploratoryToolIds(messages: ModelMessage[], skipIds: Set<string> = new Set()): void {
     // Define a protection window for recent messages
-    const protectionWindowSize = 20;
+    const protectionWindowSize = 10;
     const protectionThreshold = Math.max(0, messages.length - protectionWindowSize);
 
     logger.info(`Protection threshold: ${protectionThreshold}, total messages: ${messages.length}`);

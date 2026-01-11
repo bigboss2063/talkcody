@@ -10,9 +10,32 @@ tags: [context compaction, performance optimization, AI Coding, technical archit
 
 In the era of AI-assisted programming, Context is productivity. However, as conversations progress, the LLM's context window eventually faces challenges: skyrocketing Token costs, increased inference latency, and most importantly—large amounts of redundant information (such as repeated file reads, outdated search results) that interfere with the model's judgment.
 
-TalkCody introduces an innovative **3-Level Compaction Algorithm**: **Prune + Rewrite + AI Compaction**. This algorithm is not just about saving Tokens, but about maintaining AI's "clarity" in long-running tasks.
+TalkCody introduces an innovative **3-Level Compaction Algorithm**: **Prune + Rewrite + AI Compaction**. This algorithm is not just about saving Tokens, but about maintaining AI's "clarity" in long-running tasks (Long-run tasks).
 
 ---
+
+## Context Compaction VS Database Optimizer
+
+Database optimizers are also divided into 3 levels: Rule Based Optimizer, Cost Based Optimizer, and AI-driven adaptive optimizer. TalkCody's 3-Level Compaction Algorithm shares a similar design philosophy:
+
+| Database Optimizer | TalkCody Context Compaction | Design Philosophy |
+|-------------------|----------------------------|-------------------|
+| **Rule Based Optimizer** executes query optimization based on predefined rules | **Prune** Rule-based physical filtering (deduplication, noise filtering) | Both use deterministic rules to quickly eliminate invalid data |
+| **Cost Based Optimizer** selects optimal execution plans based on statistical information and cost models | **Rewrite** Structured code summarization based on Tree-sitter | Both perform intelligent compression through statistics (row count/Token count) and structural analysis |
+| **AI-driven adaptive optimizer** uses machine learning to dynamically adjust execution plans | **AI Compaction** Uses LLM for semantic summarization and intelligent merging | Both utilize AI to understand high-level semantics of content |
+
+This layered design reflects the philosophy of **progressive optimization**: first use low-cost rules to filter out large amounts of obviously invalid data, then use structured methods for compression, and finally call expensive AI capabilities only when necessary. This trade-off is equally effective in both database and AI fields.
+
+## Key to Context Compaction
+
+Ensure the ability to recover deleted information through the file system. Any information that can be retrieved later through file search can be safely removed.
+
+This principle distinguishes Context Compaction from traditional text compression algorithms (such as gzip): traditional compression pursues lossless reconstruction, while Context Compaction pursues **semantic recoverability**. Specifically:
+
+- **Recoverable information**: File content, code structure, error logs → can be re-acquired through tool calls, can be removed
+- **Non-recoverable information**: User's original requirements, completed decisions, intermediate reasoning processes → must be retained
+
+This design allows the Compaction algorithm to compress more aggressively while not affecting AI's judgment capability.
 
 ## System Architecture Overview
 
@@ -38,7 +61,7 @@ The `ContextFilter` class is responsible for physical-level cleanup before conve
 AI extensively uses tools like `glob`, `listFiles`, and `codeSearch` during early task exploration. These tools become noise once specific code is located.
 
 **Core Mechanism**:
-- **Protection Window**: Exploratory tools within the last 20 messages (`protectionWindowSize = 20`) are retained
+- **Protection Window**: Exploratory tools within the last 10 messages are retained
 - **Smart Filtering**: All `glob`, `listFiles`, and `codeSearch` calls and their results outside the protection window are removed
 
 ### 1.2 Duplicate File Reads Deduplication
@@ -70,17 +93,8 @@ For any tool call, if its name and parameters are exactly the same, it's identif
 
 For `todoWrite` and `exitPlanMode` critical tools, a different deduplication strategy is used:
 
-- **Deduplicate by tool name**:不考虑参数，只保留每个工具的最新一次调用
+- **Deduplicate by tool name**: Only keep the latest call for each tool, regardless of parameters
 - **Independent management**: Deduplication for these tools is separated from other tools to ensure the latest task status and plan status
-
-### 1.5 Mixed Content Handling
-
-When a message contains both text and tool calls, `ContextFilter` adopts an intelligent retention strategy:
-
-- **Retain if tool calls exist**: If tool calls remain after filtering, keep the entire message (including text part)
-- **Discard if no tool calls**: If all tool calls are filtered out and only text remains, discard the entire message
-
-This ensures that retained messages always contain meaningful tool call information, rather than isolated text fragments.
 
 ---
 
@@ -132,7 +146,7 @@ When AI reads large files, `ContextRewriter` replaces the returned file content 
 {
   "success": true,
   "file_path": "/src/app.ts",
-  "content": "// Class: AppComponent\n// Method: ngOnInit()\n// Method: ngOnDestroy()\n// ... (only signatures)",
+  "content": "// Class: AppComponent\\n// Method: ngOnInit()\\n// Method: ngOnDestroy()\\n// ... (only signatures)",
   "message": "Read /src/app.ts [COMPRESSED: 150 lines → summarized]"
 }
 ```
@@ -158,10 +172,6 @@ When AI prepares to write large files, `ContextRewriter` summarizes the input co
 ### 2.4 Compression Markers
 
 All summarized content is tagged with `[COMPRESSED: {original_lines} lines → summarized]`, making it clear to both users and AI that this is a summary, not original code.
-
-### 2.5 Error Handling
-
-If Tree-sitter summarization fails (e.g., unsupported language or parsing error), `ContextRewriter` preserves the original content and won't discard any information.
 
 ---
 
@@ -268,7 +278,6 @@ To ensure compressed messages meet LLM API requirements, `ContextCompactor` prov
 #### Auto-Fix Strategies:
 
 1. **Remove orphan tool calls**
-
 2. **Remove orphan tool results**
 3. **Merge consecutive assistant messages**
 
@@ -343,6 +352,74 @@ In complex refactoring or new feature development, conversations may last hundre
 
 ---
 
+## Specialized Small Models for Compaction: The Next Frontier
+
+### Why Specialized Small Models Are Suitable for Context Compaction?
+
+In fact, context compaction is particularly suitable for implementation by specialized small models—faster speed, lower cost.
+
+#### Technical Advantages
+
+1. **Clear Task Boundaries**: Compaction's input/output format is very clear (message list → compressed summary), making it easy to train
+2. **Quantifiable Evaluation Metrics**: Token reduction rate, information retention rate, inference latency, etc., can all be precisely measured
+3. **Cost-Sensitive Scenarios**: In long-running tasks, Compaction is called frequently, and single savings are magnified
+4. **High Speed Requirements**: Compaction shouldn't become the main bottleneck of user wait time
+
+#### Domain-Specific Models vs General Models
+
+| Metric | General LLM (e.g., GPT-4) | Specialized Compaction Model |
+|--------|-------------------------|---------------------------|
+| Training Data | General domain text | Programming conversations, code context |
+| Inference Speed | ~30-100 tokens/s | ~1000+ tokens/s (expected) |
+| Cost | $0.01-0.03/1K tokens | $0.001-0.005/1K tokens (expected) |
+| Understanding Ability | Broad but shallow | Specialized but deep |
+
+This trend of **Model Specialization** is emerging in the AI field: by training small models on specific tasks, you can significantly improve efficiency and reduce costs while maintaining quality.
+
+### Current Practice: MorphLLM's Exploration
+
+[morphllm](https://www.morphllm.com/) currently implements two specialized small models, providing valuable reference for us:
+
+#### Fast Apply Model
+- **Function**: Quickly implement diff merge for files
+- **Performance**: Speed up to 10,500 tokens/s, accuracy 98%
+- **Scenario**: Applying AI-generated code changes to files
+
+#### Warp Grep Model
+- **Function**: Search codebase through inference from multiple grep, read, list_dir tool calls
+- **Scenario**: Code exploration and localization
+
+### Critical Analysis of MorphLLM
+
+While MorphLLM's attempts are commendable, I believe both directions have limitations:
+
+#### Limitations of Fast Apply Model
+
+The pain point this model addresses has relatively low weight in AI coding:
+
+1. **Time Allocation Mismatch**: According to actual data statistics, AI coding time is mainly spent on:
+   - **Explore**: Understanding codebase structure, accounting for 40-50%
+   - **Plan**: Designing solutions, accounting for 30-40%
+   - **Edit**: Actually writing code, only accounting for 10-20%
+
+2. **Diminishing Marginal Returns**: Even if the Edit phase speed is improved 10x, overall task time can only be reduced by 2-4%
+
+3. **Existing Optimization Space**: Modern LLMs already have strong code generation capabilities; the bottleneck is not generation speed but understanding depth
+
+#### Limitations of Warp Grep Model
+
+This model's direction is contrary to current technological trends:
+
+1. **Popularity of Parallel Tool Calls**:
+   - The latest Coding models already support parallel tool call
+   - A single request can simultaneously initiate 10+ search operations
+
+2. **Ai Coding Agent Framework Optimization**:
+   - TalkCody already has built-in intelligent parallel scheduling
+   - No need to decide tool call order through model inference
+
+I believe **specialized small models focused on context compaction** will definitely emerge in the future.
+
 ## Conclusion
 
 TalkCody's 3-level compression algorithm demonstrates that: **Efficient AI development depends not just on how strong the model is, but on how you manage the information fed to the model.**
@@ -352,4 +429,3 @@ Through this algorithm, TalkCody is able to:
 - 💰 **Reduce costs**: Reduce Token usage by over 75% through early exit and smart filtering
 - ⚡ **Improve response speed**: Reduce input Token count, lower inference latency
 - 🎯 **Maintain accuracy**: Ensure AI doesn't lose important information through critical state protection and smart summarization
-- 🔧 **Ensure compatibility**: Adapt to all mainstream LLM APIs through boundary alignment and auto-fix
