@@ -1,7 +1,7 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { ExternalLink, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { type MouseEvent, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,103 @@ interface WhatsNewDialogProps {
   forceOpen?: boolean;
   onForceOpenChange?: (open: boolean) => void;
 }
+
+const DOCS_BASE_URL = 'https://www.talkcody.com';
+
+type MarkdownSegment =
+  | { type: 'text'; value: string; start: number }
+  | { type: 'link'; label: string; href: string; start: number };
+
+const parseMarkdownSegments = (input: string): MarkdownSegment[] => {
+  const segments: MarkdownSegment[] = [];
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let lastIndex = 0;
+  let match = linkRegex.exec(input);
+
+  while (match !== null) {
+    const matchIndex = match.index ?? 0;
+    if (matchIndex > lastIndex) {
+      segments.push({
+        type: 'text',
+        value: input.slice(lastIndex, matchIndex),
+        start: lastIndex,
+      });
+    }
+
+    const label = match[1];
+    const href = match[2]?.trim();
+
+    if (label && href) {
+      segments.push({ type: 'link', label, href, start: matchIndex });
+    } else {
+      segments.push({ type: 'text', value: match[0], start: matchIndex });
+    }
+
+    lastIndex = matchIndex + match[0].length;
+    match = linkRegex.exec(input);
+  }
+
+  if (lastIndex < input.length) {
+    segments.push({
+      type: 'text',
+      value: input.slice(lastIndex),
+      start: lastIndex,
+    });
+  }
+
+  if (segments.length === 0) {
+    return [{ type: 'text', value: input, start: 0 }];
+  }
+
+  return segments;
+};
+
+const resolveMarkdownHref = (href: string): string | null => {
+  const trimmed = href.trim();
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `${DOCS_BASE_URL}${trimmed}`;
+  }
+
+  return null;
+};
+
+const handleOpenLink = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+  event.preventDefault();
+  shellOpen(href).catch((error) => {
+    logger.error('Failed to open markdown link:', error);
+  });
+};
+
+const renderMarkdownLinks = (input: string) =>
+  parseMarkdownSegments(input).map((segment) => {
+    const key = `segment-${segment.type}-${segment.start}`;
+
+    if (segment.type === 'text') {
+      return <span key={key}>{segment.value}</span>;
+    }
+
+    const resolved = resolveMarkdownHref(segment.href);
+
+    if (!resolved) {
+      return <span key={key}>{segment.label}</span>;
+    }
+
+    return (
+      <a
+        key={key}
+        href={resolved}
+        onClick={(event) => handleOpenLink(event, resolved)}
+        className="text-primary underline-offset-4 hover:underline"
+      >
+        {segment.label}
+      </a>
+    );
+  });
 
 export function WhatsNewDialog({ forceOpen, onForceOpenChange }: WhatsNewDialogProps) {
   const { t, locale } = useLocale();
@@ -134,7 +231,7 @@ export function WhatsNewDialog({ forceOpen, onForceOpenChange }: WhatsNewDialogP
               </h4>
               <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                 {content.added.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>{renderMarkdownLinks(item)}</li>
                 ))}
               </ul>
             </div>
@@ -148,7 +245,7 @@ export function WhatsNewDialog({ forceOpen, onForceOpenChange }: WhatsNewDialogP
               </h4>
               <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                 {content.changed.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>{renderMarkdownLinks(item)}</li>
                 ))}
               </ul>
             </div>
@@ -162,7 +259,7 @@ export function WhatsNewDialog({ forceOpen, onForceOpenChange }: WhatsNewDialogP
               </h4>
               <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                 {content.fixed.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>{renderMarkdownLinks(item)}</li>
                 ))}
               </ul>
             </div>
@@ -176,7 +273,7 @@ export function WhatsNewDialog({ forceOpen, onForceOpenChange }: WhatsNewDialogP
               </h4>
               <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                 {content.removed.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>{renderMarkdownLinks(item)}</li>
                 ))}
               </ul>
             </div>
