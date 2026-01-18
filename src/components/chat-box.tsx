@@ -452,9 +452,6 @@ export const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           await executeCommand(parsedCommand.command, parsedCommand.rawArgs);
           return;
         }
-
-        toast.error(t.Chat.commands.unknownCommand('compact'));
-        return;
       }
 
       // Check if the message is a command (starts with '/')
@@ -465,14 +462,6 @@ export const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           await executeCommand(parsedCommand.command, parsedCommand.rawArgs);
           return;
         }
-
-        const commandName = userMessage.slice(1).trim().split(/\s+/)[0];
-        if (commandName) {
-          toast.error(t.Chat.commands.unknownCommand(commandName));
-        } else {
-          toast.error(t.Chat.commands.invalidCommand);
-        }
-        return;
       }
 
       // If not a command, process as a normal message

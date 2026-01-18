@@ -58,13 +58,14 @@ export class CreateAgentAgent {
       writeFile: getToolSync('writeFile'),
       editFile: getToolSync('editFile'),
       bash: getToolSync('bash'),
+      askUserQuestions: getToolSync('askUserQuestions'),
     };
 
     return {
       id: 'create-agent',
       name: 'Create Agent',
       description: 'Guides users to create and register custom local agents',
-      modelType: ModelType.SMALL,
+      modelType: ModelType.MAIN,
       version: CreateAgentAgent.VERSION,
       systemPrompt: CreateAgentPromptTemplate,
       tools: selectedTools,
