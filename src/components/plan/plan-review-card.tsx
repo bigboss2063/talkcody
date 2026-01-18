@@ -1,10 +1,11 @@
 import { Check, Edit2, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MyMarkdown from '@/components/chat/my-markdown';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useLocale } from '@/hooks/use-locale';
+import { notificationService } from '@/services/notification-service';
 import { usePlanModeStore } from '@/stores/plan-mode-store';
 
 interface PlanReviewCardProps {
@@ -21,6 +22,22 @@ export function PlanReviewCard({ planContent, taskId }: PlanReviewCardProps) {
 
   const { t } = useLocale();
   const { approvePlan, rejectPlan } = usePlanModeStore();
+  const lastNotifiedKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const notificationKey = taskId ?? planContent;
+
+    if (lastNotifiedKeyRef.current === notificationKey) {
+      return;
+    }
+
+    lastNotifiedKeyRef.current = notificationKey;
+    notificationService
+      .sendIfNotFocused(t.PlanReview.notificationTitle, t.PlanReview.notificationBody)
+      .catch((error) => {
+        console.error('[PlanReviewCard] Failed to send notification', error);
+      });
+  }, [planContent, taskId, t.PlanReview.notificationBody, t.PlanReview.notificationTitle]);
 
   const handleApprove = () => {
     if (!taskId) {

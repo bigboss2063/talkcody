@@ -9,9 +9,6 @@ import { logger } from '@/lib/logger';
 class NotificationService {
   private permissionGranted: boolean | null = null;
 
-  /**
-   * Check if permission is granted and request if needed
-   */
   private async ensurePermission(): Promise<boolean> {
     if (this.permissionGranted !== null) {
       return this.permissionGranted;
@@ -81,16 +78,10 @@ class NotificationService {
     }
   }
 
-  /**
-   * Send notification when agent loop completes
-   */
   async notifyAgentComplete(): Promise<void> {
     await this.sendIfNotFocused('Task Complete', 'TalkCody agent has finished processing');
   }
 
-  /**
-   * Send notification when file edit review is required
-   */
   async notifyReviewRequired(): Promise<void> {
     await this.sendIfNotFocused('Review Required', 'File edit needs your approval');
   }

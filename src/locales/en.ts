@@ -1343,6 +1343,8 @@ const en: LocaleDefinition = {
     title: 'Implementation Plan Review',
     description:
       'Please review the implementation plan below. You can approve it as-is, edit it, or reject it with feedback.',
+    notificationTitle: 'Plan Review Required',
+    notificationBody: 'Please review and approve the implementation plan.',
     editHint: 'Edit the plan below (Markdown supported):',
     editPlaceholder: 'Edit your plan here...',
     feedbackPrompt: "Please provide feedback on why you're rejecting this plan:",

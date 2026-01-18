@@ -52,8 +52,7 @@ class ExecutionService {
    * Start execution for a task
    */
   async startExecution(config: ExecutionConfig, callbacks?: ExecutionCallbacks): Promise<void> {
-    const { taskId, messages, model, systemPrompt, tools, agentId, isNewTask, userMessage } =
-      config;
+    const { taskId, messages, model, systemPrompt, tools, agentId } = config;
 
     const executionStore = useExecutionStore.getState();
 
@@ -158,8 +157,7 @@ class ExecutionService {
                 });
             }
 
-            // Post-processing
-            await this.handlePostProcessing(taskId, isNewTask, userMessage);
+            await notificationService.notifyAgentComplete();
 
             // Call external callback
             callbacks?.onComplete?.({ success: true, fullText });
@@ -193,7 +191,7 @@ class ExecutionService {
             await messageService.addToolMessage(taskId, toolMessage);
           },
 
-          onAttachment: async (attachment: any) => {
+          onAttachment: async (attachment) => {
             if (abortController.signal.aborted) return;
             if (currentMessageId) {
               await messageService.addAttachment(taskId, currentMessageId, attachment);
@@ -251,21 +249,6 @@ class ExecutionService {
    */
   canStartNew(): boolean {
     return useExecutionStore.getState().canStartNew();
-  }
-
-  /**
-   * Handle post-processing after agent loop completes
-   */
-  private async handlePostProcessing(
-    taskId: string,
-    isNewTask?: boolean,
-    userMessage?: string
-  ): Promise<void> {
-    // AI title generation is now done asynchronously immediately after task creation
-    // to provide faster title updates without waiting for the entire task to complete
-
-    // Send notification if window is not focused
-    await notificationService.notifyAgentComplete();
   }
 }
 

@@ -67,6 +67,7 @@ class AgentRegistry {
     const { TestWriterAgent } = await import('./test-writer-agent');
     const { CodingAgent } = await import('./coding-agent');
     const { InitProjectAgent } = await import('./init-project-agent');
+    const { CreateToolAgent } = await import('./create-tool-agent');
     const { ImageGeneratorAgent } = await import('./image-generator-agent');
 
     // Build planner tools (includes MCP integration)
@@ -83,6 +84,7 @@ class AgentRegistry {
       TestWriterAgent.getDefinition(),
       CodingAgent.getDefinition(),
       InitProjectAgent.getDefinition(),
+      CreateToolAgent.getDefinition(),
       ImageGeneratorAgent.getDefinition(),
     ];
 
@@ -700,7 +702,11 @@ class AgentRegistry {
     }
 
     // Handle marketplace metadata with proper type casting
-    const marketplacePartial = partial as any;
+    const marketplacePartial = partial as {
+      sourceType?: UpdateAgentData['source_type'];
+      marketplaceId?: string;
+      marketplaceVersion?: string;
+    };
     if (marketplacePartial.sourceType !== undefined) {
       updateData.source_type = marketplacePartial.sourceType;
     }

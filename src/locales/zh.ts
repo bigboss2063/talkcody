@@ -1305,6 +1305,8 @@ const zh: LocaleDefinition = {
     submitted: '计划审核提交成功',
     title: '实施计划审核',
     description: '请审核下面的实施计划。您可以直接批准、编辑或提供反馈后拒绝。',
+    notificationTitle: '需要审核计划',
+    notificationBody: '请审核并批准实施计划。',
     editHint: '编辑下面的计划（支持 Markdown）：',
     editPlaceholder: '在此编辑您的计划...',
     feedbackPrompt: '请说明您拒绝此计划的原因：',

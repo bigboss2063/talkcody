@@ -1289,6 +1289,8 @@ export interface LocaleDefinition {
     submitted: string;
     title: string;
     description: string;
+    notificationTitle: string;
+    notificationBody: string;
     editHint: string;
     editPlaceholder: string;
     feedbackPrompt: string;

@@ -105,6 +105,55 @@ export async function getBuiltInCommands(): Promise<Command[]> {
       createdAt: new Date(),
       updatedAt: new Date(),
     },
+
+    // /create-tool - Create a custom tool
+    {
+      id: 'create-tool',
+      name: 'create-tool',
+      description: 'Create and install a custom tool',
+      category: CommandCategory.PROJECT,
+      type: CommandType.AI_PROMPT,
+      parameters: [
+        {
+          name: 'name',
+          description: 'Tool name or short description',
+          required: false,
+          type: 'string',
+        },
+      ],
+      parametersSchema: z.object({
+        name: z.string().optional(),
+        _raw: z.string().optional(),
+      }),
+      executor: async (args, _context) => {
+        const toolHint = args.name || args._raw || '';
+
+        let aiMessage =
+          'Please help create a custom TalkCody tool. Gather requirements (name, purpose, inputs, permissions, output) and produce a valid tool definition file using toolHelper from @/lib/custom-tool-sdk. ' +
+          'The tool should be saved under .talkcody/tools as a .tsx file and include renderToolDoing/renderToolResult when useful. ' +
+          'Use simpleFetch from @/lib/tauri-fetch for network calls. ' +
+          'After creation, ensure the tool is installed by refreshing Custom Tools (Settings → Custom Tools → Refresh) or using Tool Playground Install. ';
+
+        if (toolHint) {
+          aiMessage += `The tool request is: ${toolHint}. `;
+        }
+
+        return {
+          success: true,
+          message: 'Custom tool creation started',
+          continueProcessing: true,
+          aiMessage,
+        };
+      },
+      isBuiltIn: true,
+      enabled: true,
+      icon: 'Wrench',
+      preferredAgentId: 'create-tool',
+      aliases: ['new-tool', 'tool'],
+      examples: ['/create-tool', '/create-tool weather fetcher'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
   ];
 
   return commands;
