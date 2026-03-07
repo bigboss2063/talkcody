@@ -20,14 +20,14 @@ function ShareMarkdownComponent({ content }: ShareMarkdownProps) {
   };
 
   return (
-    <div className="share-markdown prose prose-sm dark:prose-invert max-w-none">
+    <div className="share-markdown prose prose-sm prose-invert max-w-none">
       <ReactMarkdown
         components={{
           a: ({ node, href, children, ...props }) => (
             <a
               href={href}
               onClick={(e) => handleLinkClick(e, href)}
-              className="text-blue-600 hover:underline dark:text-blue-400"
+              className="text-blue-400 hover:underline"
               target="_blank"
               rel="noopener noreferrer"
               {...props}
@@ -43,31 +43,31 @@ function ShareMarkdownComponent({ content }: ShareMarkdownProps) {
           table: ({ node, ...props }) => (
             <div className="overflow-x-auto">
               <table
-                className="min-w-full border-collapse border border-gray-300 dark:border-gray-600"
+                className="min-w-full border-collapse border border-gray-600"
                 {...props}
               />
             </div>
           ),
           th: ({ node, ...props }) => (
             <th
-              className="border border-gray-300 bg-gray-100 px-4 py-2 text-left font-medium text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="border border-gray-600 bg-gray-800 px-4 py-2 text-left font-medium text-gray-100"
               {...props}
             />
           ),
           td: ({ node, ...props }) => (
             <td
-              className="border border-gray-300 px-4 py-2 text-gray-800 dark:border-gray-600 dark:text-gray-200"
+              className="border border-gray-600 px-4 py-2 text-gray-200"
               {...props}
             />
           ),
           blockquote: ({ node, ...props }) => (
             <blockquote
-              className="border-l-4 border-gray-300 pl-4 italic text-gray-700 dark:border-gray-600 dark:text-gray-400"
+              className="border-l-4 border-gray-600 pl-4 italic text-gray-300"
               {...props}
             />
           ),
           hr: ({ node, ...props }) => (
-            <hr className="my-6 border-gray-300 dark:border-gray-600" {...props} />
+            <hr className="my-6 border-gray-600" {...props} />
           ),
         }}
         rehypePlugins={[

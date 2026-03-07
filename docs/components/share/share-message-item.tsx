@@ -73,7 +73,7 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
     // Fallback to generic output display
     return (
       <div className="p-4">
-        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-sm text-gray-700 dark:text-gray-300">
+        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-sm text-gray-300">
           {typeof output === 'string' ? output : JSON.stringify(output, null, 2)}
         </pre>
       </div>
@@ -112,12 +112,12 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
       return (
         <div
           key={item.toolCallId}
-          className="my-2 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+          className="my-2 overflow-hidden rounded-lg border border-gray-700 bg-gray-800"
         >
           {/* Tool header */}
           <button
             onClick={() => toggleToolExpansion(item.toolCallId)}
-            className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-700"
             type="button"
           >
             {/* Success/Error icon */}
@@ -126,11 +126,11 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
             ) : (
               <Check className="h-4 w-4 text-green-500" />
             )}
-            <span className="font-medium text-gray-900 dark:text-gray-100">
+            <span className="font-medium text-gray-100">
               {String(item.toolName)}
             </span>
             {summaryText.length > 0 ? (
-              <span className="font-mono text-xs text-gray-500 dark:text-gray-400 flex-1 overflow-hidden text-ellipsis">
+              <span className="font-mono text-xs text-gray-400 flex-1 overflow-hidden text-ellipsis">
                 {summaryText}
               </span>
             ) : null}
@@ -144,7 +144,7 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
 
           {/* Tool details (expanded) */}
           {isExpanded && item.output ? (
-            <div className="border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
+            <div className="border-t border-gray-700 bg-gray-900">
               {renderToolOutput(item)}
             </div>
           ) : null}
@@ -157,7 +157,7 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
   const avatarBgClass = isUser
     ? 'bg-blue-600 text-white'
     : isTool
-      ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+      ? 'bg-gray-700 text-gray-300'
       : 'bg-emerald-600 text-white';
 
   // Avatar icon or image
@@ -167,9 +167,9 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
   // Message content
   const messageContent: ReactNode = typeof message.content === 'string' ? (
     isUser ? (
-      <div className="relative my-2 flex w-full items-start rounded-xl border border-gray-700 bg-muted/50 p-4 transition-colors hover:bg-muted/80">
+      <div className="relative my-2 flex w-full items-start rounded-xl border border-gray-700 bg-gray-800/50 p-4 transition-colors hover:bg-gray-800/80">
         <h2
-          className={'whitespace-pre-wrap break-words font-normal text-foreground text-sm'}
+          className={'whitespace-pre-wrap break-words font-normal text-gray-100 text-sm'}
           dir="auto"
         >
           {message.content}
@@ -188,7 +188,7 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
       {message.attachments.map((att) => (
         <div
           key={att.id}
-          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+          className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm"
         >
           {att.type === 'image' && att.preview ? (
             <img
@@ -199,7 +199,7 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
           ) : (
             <>
               <span className="text-gray-400">📎</span>
-              <span className="text-gray-700 dark:text-gray-300">
+              <span className="text-gray-300">
                 {att.filename}
               </span>
             </>
@@ -211,7 +211,7 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
 
   // Nested tools
   const nestedTools: ReactNode = message.nestedTools && message.nestedTools.length > 0 ? (
-    <div className="mt-3 space-y-2 border-l-2 border-gray-200 pl-4 dark:border-gray-700">
+    <div className="mt-3 space-y-2 border-l-2 border-gray-700 pl-4">
       {message.nestedTools.map((nestedMsg) => (
         <ShareMessageItemComponent key={nestedMsg.id} message={nestedMsg} />
       ))}
@@ -221,7 +221,7 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
   return (
     <div
       className={`flex gap-4 px-4 py-5 ${
-        isUser ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-white dark:bg-gray-900'
+        isUser ? 'bg-gray-800/50' : 'bg-gray-900'
       }`}
     >
 
@@ -233,18 +233,18 @@ function ShareMessageItemComponent({ message }: ShareMessageItemProps): ReactNod
             className={`flex h-6 w-6 items-center justify-center rounded-full ${avatarBgClass}`}
           >
             {showLogoImage ? (
-              <img src="/logo.svg" alt="TalkCody" className="h-4 w-4 dark:invert" />
+              <img src="/logo.svg" alt="TalkCody" className="h-4 w-4 invert" />
             ) : (
               AvatarIcon && <AvatarIcon className="h-4 w-4" />
             )}
           </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-gray-400">
             {formatTime(message.timestamp)}
           </span>
         </div>
 
         {/* Message content */}
-        <div className="text-gray-800 dark:text-gray-200">
+        <div className="text-gray-200">
           {messageContent}
         </div>
 

@@ -45,6 +45,7 @@ struct GeminiGenerateContentRequest {
 
 #[derive(Debug, Clone, Serialize)]
 struct GeminiContent {
+    role: String,
     parts: Vec<GeminiPart>,
 }
 
@@ -90,17 +91,31 @@ struct GeminiInlineData {
 
 pub struct GoogleImageClient {
     base_url: String,
+    provider_id: String,
 }
 
 impl GoogleImageClient {
     pub fn new() -> Self {
         Self {
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
+            provider_id: "google".to_string(),
         }
     }
 
     pub fn with_base_url(base_url: String) -> Self {
-        Self { base_url }
+        Self {
+            base_url,
+            provider_id: "google".to_string(),
+        }
+    }
+
+    /// Create a client with custom base_url and provider_id
+    /// Used for third-party providers hosting Gemini models (e.g., zenmux)
+    pub fn with_base_url_and_provider(base_url: String, provider_id: String) -> Self {
+        Self {
+            base_url,
+            provider_id,
+        }
     }
 
     pub async fn generate(
@@ -110,24 +125,42 @@ impl GoogleImageClient {
         request: ImageGenerationRequest,
     ) -> Result<Vec<GeneratedImage>, String> {
         let api_key = api_keys
-            .get_setting(&format!("api_key_{}", "google"))
+            .get_setting(&format!("api_key_{}", self.provider_id))
             .await?
             .unwrap_or_default();
 
         if api_key.is_empty() {
-            return Err(
-                "Google API key not configured for image generation / Google 图片生成未配置 API 密钥"
-                    .to_string(),
-            );
+            return Err(format!(
+                "API key not configured for {} image generation / {} 图片生成未配置 API 密钥",
+                self.provider_id, self.provider_id
+            ));
         }
 
+        log::info!(
+            "[GoogleImageClient] provider_id: {}, base_url: {}, model: {}, api_key: {}",
+            self.provider_id,
+            self.base_url,
+            model,
+            api_key
+        );
+
         // Detect model type: Imagen models use :predict, Gemini image models use :generateContent
-        let is_imagen_model = model.starts_with("imagen");
+        let model_name = model.rsplit('/').next().unwrap_or(model);
+        let is_imagen_model = model_name.starts_with("imagen");
 
         if is_imagen_model {
             self.generate_imagen(api_key, model, request).await
         } else {
             self.generate_gemini(api_key, model, request).await
+        }
+    }
+
+    fn resolve_vertex_base_url(&self) -> String {
+        let base = self.base_url.trim_end_matches('/');
+        if self.provider_id == "zenmux" && !base.ends_with("/v1") {
+            format!("{}/v1", base)
+        } else {
+            base.to_string()
         }
     }
 
@@ -145,12 +178,10 @@ impl GoogleImageClient {
             parameters: VertexAiParameters { sample_count: 1 },
         };
 
-        let url = format!(
-            "{}/models/{}:predict?key={}",
-            self.base_url.trim_end_matches('/'),
-            model,
-            api_key
-        );
+        let base_url = self.resolve_vertex_base_url();
+        let url = format!("{}/models/{}:predict", base_url, model);
+
+        log::info!("[GoogleImageClient] Imagen URL: {}", url);
 
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
@@ -160,6 +191,7 @@ impl GoogleImageClient {
         let response = client
             .post(&url)
             .header("Content-Type", "application/json")
+            .header("x-goog-api-key", api_key.as_str())
             .json(&payload)
             .send()
             .await
@@ -214,21 +246,18 @@ impl GoogleImageClient {
     ) -> Result<Vec<GeneratedImage>, String> {
         let payload = GeminiGenerateContentRequest {
             contents: vec![GeminiContent {
+                role: "user".to_string(),
                 parts: vec![GeminiPart {
                     text: request.prompt,
                 }],
             }],
             generation_config: GeminiGenerationConfig {
-                response_modalities: vec!["image".to_string()],
+                response_modalities: vec!["TEXT".to_string(), "IMAGE".to_string()],
             },
         };
 
-        let url = format!(
-            "{}/models/{}:generateContent?key={}",
-            self.base_url.trim_end_matches('/'),
-            model,
-            api_key
-        );
+        let base_url = self.resolve_vertex_base_url();
+        let url = format!("{}/models/{}:generateContent", base_url, model);
 
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
@@ -238,6 +267,7 @@ impl GoogleImageClient {
         let response = client
             .post(&url)
             .header("Content-Type", "application/json")
+            .header("x-goog-api-key", api_key.as_str())
             .json(&payload)
             .send()
             .await

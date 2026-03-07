@@ -46,6 +46,7 @@ export function getDocLinks() {
       anthropic: `${BASE_URL}/configuration/api-keys#anthropic`,
       github_copilot: `${BASE_URL}/features/github-copilot`,
       google: `${BASE_URL}/configuration/api-keys#google-ai`,
+      zenmux: `${BASE_URL}/configuration/api-keys#zenmux`,
       groq: `${BASE_URL}/configuration/api-keys#groq`,
       deepseek: `${BASE_URL}/configuration/api-keys#deepseek`,
       ollama: `${BASE_URL}/configuration/api-keys#ollama`,

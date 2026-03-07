@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* CSS variables for fumadocs compatibility - dark mode only */
+:root {
+  --color-fd-background: hsl(0, 0%, 7%);
+  --color-fd-foreground: hsl(0, 0%, 92%);
+  --color-fd-muted: hsl(0, 0%, 13%);
+  --color-fd-muted-foreground: hsl(0, 0%, 70%);
+  --color-fd-border: hsl(0, 0%, 30%);
+  --color-fd-card: hsl(0, 0%, 10%);
+  --tw-prose-body: rgb(209 213 219);
+  --tw-prose-headings: rgb(243 244 246);
+  --tw-prose-lead: rgb(209 213 219);
+  --tw-prose-links: rgb(147 197 253);
+  --tw-prose-bold: rgb(243 244 246);
+  --tw-prose-counters: rgb(156 163 175);
+  --tw-prose-bullets: rgb(156 163 175);
+  --tw-prose-quotes: rgb(209 213 219);
+  --tw-prose-captions: rgb(156 163 175);
+  --tw-prose-code: rgb(243 244 246);
+}
+
 /* Code highlighting styles */
 pre {
   padding: 0;
@@ -34,11 +54,6 @@ pre {
 
 .share-code-block pre,
 .share-code-pre {
-  background-color: rgb(249 250 251) !important;
-}
-
-.dark .share-code-block pre,
-.dark .share-code-pre {
   background-color: rgb(17 24 39) !important;
 }
 
@@ -61,33 +76,20 @@ pre code.hljs {
 }
 
 code {
-  padding: 0px;
+  padding: 0.1em 0.35em;
   border-radius: 0.25rem;
-  background-color: rgb(249 250 251);
-  color: rgb(31 41 55);
-}
-
-.dark code {
   background-color: rgb(55 65 81);
   color: rgb(243 244 246);
+  font-size: 0.875em;
+  border: none !important;
 }
 
 .share-code-block code,
 .share-code-pre code {
-  color: rgb(17 24 39);
-}
-
-.dark .share-code-block code,
-.dark .share-code-pre code {
   color: rgb(243 244 246);
 }
 
 .hljs {
-  background: transparent;
-  color: rgb(36 41 47);
-}
-
-.dark .hljs {
   background: transparent;
   color: #f8f8f2;
 }
@@ -98,75 +100,14 @@ pre.overflow-x-auto {
   background: transparent !important;
 }
 
-/* Light theme syntax highlighting */
-.hljs-tag,
-.hljs-subst {
-  color: rgb(36 41 47);
+/* Share CTA background */
+.share-cta {
+  background-color: rgb(17 24 39);
+  border: 1px solid rgb(55 65 81);
 }
 
-.hljs-strong,
-.hljs-emphasis {
-  color: rgb(87 96 106);
-}
-
-.hljs-bullet,
-.hljs-quote,
-.hljs-number,
-.hljs-regexp,
-.hljs-literal,
-.hljs-link {
-  color: rgb(9 105 218);
-}
-
-.hljs-code,
-.hljs-title,
-.hljs-section,
-.hljs-selector-class {
-  color: rgb(116 42 220);
-}
-
-.hljs-strong {
-  font-weight: bold;
-}
-
-.hljs-emphasis {
-  font-style: italic;
-}
-
-.hljs-keyword,
-.hljs-selector-tag,
-.hljs-name,
-.hljs-attr {
-  color: rgb(207 34 46);
-}
-
-.hljs-symbol,
-.hljs-attribute {
-  color: rgb(9 105 218);
-}
-
-.hljs-params,
-.hljs-title.class_,
-.hljs-class .hljs-title {
-  color: rgb(36 41 47);
-}
-
-.hljs-string,
-.hljs-type,
-.hljs-built_in,
-.hljs-selector-id,
-.hljs-selector-attr,
-.hljs-selector-pseudo,
-.hljs-addition,
-.hljs-variable,
-.hljs-template-variable {
-  color: rgb(10 48 105);
-}
-
-.hljs-comment,
-.hljs-deletion,
-.hljs-meta {
-  color: rgb(87 96 106);
+.share-cta-title {
+  color: rgb(243 244 246);
 }
 
 /* Dark theme syntax highlighting - Monokai style */

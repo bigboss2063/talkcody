@@ -1,5 +1,5 @@
 {
-  "version": "2026-02-26T20:03:42.353Z",
+  "version": "2026-03-06T01:24:50.699Z",
   "models": {
     "gpt-5-nano": {
       "name": "GPT-5 Nano",
@@ -7,12 +7,14 @@
       "providers": [
         "aiGateway",
         "openai",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "openai": "gpt-5-nano",
         "aiGateway": "openai/gpt-5-nano",
-        "openRouter": "openai/gpt-5-nano"
+        "openRouter": "openai/gpt-5-nano",
+        "zenmux": "openai/gpt-5-nano"
       },
       "pricing": {
         "input": "0.00000005",
@@ -21,27 +23,29 @@
       },
       "context_length": 400000
     },
-    "gpt-52": {
-      "name": "GPT 5.2",
+    "gpt-54": {
+      "name": "GPT 5.4",
       "imageInput": true,
       "providers": [
         "aiGateway",
         "openai",
         "github_copilot",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
-        "openai": "gpt-5.2",
-        "github_copilot": "gpt-5.2",
-        "aiGateway": "openai/gpt-5.2",
-        "openRouter": "openai/gpt-5.2"
+        "openai": "gpt-5.4",
+        "github_copilot": "gpt-5.4",
+        "aiGateway": "openai/gpt-5.4",
+        "openRouter": "openai/gpt-5.4",
+        "zenmux": "openai/gpt-5.4"
       },
       "pricing": {
-        "input": "0.00000175",
-        "output": "0.000014",
-        "cachedInput": "0.00000018"
+        "input": "0.0000025",
+        "output": "0.000015",
+        "cachedInput": "0.00000025"
       },
-      "context_length": 400000
+      "context_length": 1050000
     },
     "gpt-5-mini": {
       "name": "GPT-5 Mini",
@@ -50,13 +54,15 @@
         "aiGateway",
         "openai",
         "github_copilot",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "openai": "gpt-5-mini",
         "aiGateway": "openai/gpt-5-mini",
         "openRouter": "openai/gpt-5-mini",
-        "github_copilot": "gpt-5-mini"
+        "github_copilot": "gpt-5-mini",
+        "zenmux": "openai/gpt-5-mini"
       },
       "pricing": {
         "input": "0.00000025",
@@ -72,13 +78,15 @@
         "aiGateway",
         "openai",
         "github_copilot",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "openai": "gpt-5.3-codex",
         "github_copilot": "gpt-5.3-codex",
         "aiGateway": "openai/gpt-5.3-codex",
-        "openRouter": "openai/gpt-5.3-codex"
+        "openRouter": "openai/gpt-5.3-codex",
+        "zenmux": "openai/gpt-5.3-codex"
       },
       "pricing": {
         "input": "0.00000175",
@@ -110,13 +118,15 @@
         "google",
         "aiGateway",
         "openRouter",
-        "github_copilot"
+        "github_copilot",
+        "zenmux"
       ],
       "providerMappings": {
         "google": "gemini-3-flash-preview",
         "aiGateway": "google/gemini-3-flash",
         "openRouter": "google/gemini-3-flash-preview",
-        "github_copilot": "gemini-3-flash-preview"
+        "github_copilot": "gemini-3-flash-preview",
+        "zenmux": "google/gemini-3-flash-preview"
       },
       "pricing": {
         "input": "0.0000005",
@@ -132,12 +142,14 @@
         "google",
         "github_copilot",
         "aiGateway",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "google": "gemini-2.5-pro",
         "aiGateway": "google/gemini-2.5-pro",
-        "openRouter": "google/gemini-2.5-pro"
+        "openRouter": "google/gemini-2.5-pro",
+        "zenmux": "google/gemini-2.5-pro"
       },
       "pricing": {
         "input": "0.00000125",
@@ -152,13 +164,15 @@
         "google",
         "aiGateway",
         "github_copilot",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "google": "gemini-3.1-pro-preview",
         "github_copilot": "gemini-3.1-pro-preview",
         "aiGateway": "google/gemini-3.1-pro-preview",
-        "openRouter": "google/gemini-3.1-pro-preview"
+        "openRouter": "google/gemini-3.1-pro-preview",
+        "zenmux": "google/gemini-3.1-pro-preview"
       },
       "pricing": {
         "input": "0.000002",
@@ -173,12 +187,14 @@
       "providers": [
         "google",
         "aiGateway",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "google": "gemini-2.5-flash-lite",
         "aiGateway": "google/gemini-2.5-flash-lite",
-        "openRouter": "google/gemini-2.5-flash-lite"
+        "openRouter": "google/gemini-2.5-flash-lite",
+        "zenmux": "google/gemini-2.5-flash-lite"
       },
       "pricing": {
         "input": "0.0000001",
@@ -195,13 +211,15 @@
         "aiGateway",
         "anthropic",
         "github_copilot",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "anthropic": "claude-opus-4-6",
         "github_copilot": "claude-opus-4.6",
         "aiGateway": "anthropic/claude-opus-4.6",
-        "openRouter": "anthropic/claude-opus-4.6"
+        "openRouter": "anthropic/claude-opus-4.6",
+        "zenmux": "anthropic/claude-opus-4.6"
       },
       "pricing": {
         "input": "0.000005",
@@ -219,13 +237,15 @@
         "aiGateway",
         "anthropic",
         "github_copilot",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "anthropic": "claude-sonnet-4-6",
         "aiGateway": "anthropic/claude-sonnet-4-6",
         "openRouter": "anthropic/claude-sonnet-4-6",
-        "github_copilot": "claude-sonnet-4-6"
+        "github_copilot": "claude-sonnet-4-6",
+        "zenmux": "anthropic/claude-sonnet-4.6"
       },
       "pricing": {
         "input": "0.000003",
@@ -243,13 +263,15 @@
         "aiGateway",
         "openRouter",
         "github_copilot",
-        "anthropic"
+        "anthropic",
+        "zenmux"
       ],
       "providerMappings": {
         "anthropic": "claude-haiku-4-5",
         "github_copilot": "claude-haiku-4.5",
         "aiGateway": "anthropic/claude-haiku-4.5",
-        "openRouter": "anthropic/claude-haiku-4.5"
+        "openRouter": "anthropic/claude-haiku-4.5",
+        "zenmux": "anthropic/claude-haiku-4.5"
       },
       "pricing": {
         "input": "0.000001",
@@ -269,14 +291,16 @@
         "openRouter",
         "kimi_coding",
         "alibaba",
-        "moonshot"
+        "moonshot",
+        "zenmux"
       ],
       "providerMappings": {
         "aiGateway": "moonshotai/kimi-k2.5",
         "openRouter": "moonshotai/kimi-k2.5",
         "moonshot": "kimi-k2.5",
         "kimi_coding": "kimi-k2.5",
-        "alibaba": "kimi-k2.5"
+        "alibaba": "kimi-k2.5",
+        "zenmux": "moonshotai/kimi-k2.5"
       },
       "pricing": {
         "input": "0.0000005",
@@ -326,12 +350,14 @@
       "providers": [
         "aiGateway",
         "openRouter",
-        "github_copilot"
+        "github_copilot",
+        "zenmux"
       ],
       "providerMappings": {
         "aiGateway": "xai/grok-code-fast-1",
         "openRouter": "x-ai/grok-code-fast-1",
-        "github_copilot": "grok-code-fast-1"
+        "github_copilot": "grok-code-fast-1",
+        "zenmux": "x-ai/grok-code-fast-1"
       },
       "pricing": {
         "input": "0.0000002",
@@ -345,11 +371,13 @@
       "imageInput": true,
       "providers": [
         "aiGateway",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "aiGateway": "xai/grok-4.1-fast-reasoning",
-        "openRouter": "x-ai/grok-4.1-fast"
+        "openRouter": "x-ai/grok-4.1-fast",
+        "zenmux": "x-ai/grok-4.1-fast"
       },
       "pricing": {
         "input": "0.0000002",
@@ -368,7 +396,8 @@
         "aiGateway",
         "alibaba",
         "zai",
-        "ollama"
+        "ollama",
+        "zenmux"
       ],
       "providerMappings": {
         "zhipu": "glm-4.7",
@@ -376,7 +405,8 @@
         "zai": "glm-4.7",
         "aiGateway": "zai/glm-4.7",
         "openRouter": "z-ai/glm-4.7",
-        "ollama": "glm-4.7:cloud"
+        "ollama": "glm-4.7:cloud",
+        "zenmux": "z-ai/glm-4.7"
       },
       "pricing": {
         "input": "0.00000043",
@@ -395,7 +425,8 @@
         "aiGateway",
         "zai",
         "alibaba",
-        "ollama"
+        "ollama",
+        "zenmux"
       ],
       "providerMappings": {
         "zhipu": "glm-5",
@@ -403,14 +434,15 @@
         "alibaba": "glm-5",
         "aiGateway": "zai/glm-5",
         "openRouter": "z-ai/glm-5",
-        "ollama": "glm-5:cloud"
+        "ollama": "glm-5:cloud",
+        "zenmux": "z-ai/glm-5"
       },
       "pricing": {
         "input": "0.000001",
         "output": "0.0000032",
         "cachedInput": "0.0000002"
       },
-      "context_length": 204800
+      "context_length": 202752
     },
     "minimax-m25": {
       "name": "MiniMax M2.5",
@@ -422,7 +454,8 @@
         "ollama",
         "alibaba",
         "aiGateway",
-        "openRouter"
+        "openRouter",
+        "zenmux"
       ],
       "providerMappings": {
         "talkcody": "MiniMax-M2.5",
@@ -430,7 +463,8 @@
         "alibaba": "MiniMax-M2.5",
         "ollama": "minimax-m2.5:cloud",
         "aiGateway": "minimax/minimax-m2.5",
-        "openRouter": "minimax/minimax-m2.5"
+        "openRouter": "minimax/minimax-m2.5",
+        "zenmux": "minimax/minimax-m2.5"
       },
       "pricing": {
         "input": "0.0000003",
@@ -482,18 +516,20 @@
       "providers": [
         "openRouter",
         "aiGateway",
-        "google"
+        "google",
+        "zenmux"
       ],
       "providerMappings": {
         "google": "gemini-3.1-flash-image-preview",
         "aiGateway": "google/gemini-3.1-flash-image-preview",
-        "openRouter": "google/gemini-3.1-flash-image-preview"
+        "openRouter": "google/gemini-3.1-flash-image-preview",
+        "zenmux": "google/gemini-3.1-flash-image-preview"
       },
       "pricing": {
-        "input": "0.00000025",
-        "output": "0.0000015"
+        "input": "0.0000005",
+        "output": "0.000003"
       },
-      "context_length": 66768
+      "context_length": 65536
     },
     "gemini-3-pro-image": {
       "name": "Nano Banana Pro",
@@ -503,17 +539,19 @@
         "openRouter",
         "aiGateway",
         "ollama",
-        "google"
+        "google",
+        "zenmux"
       ],
       "providerMappings": {
         "google": "gemini-3-pro-image-preview",
         "ollama": "gemini-3-flash-preview:cloud",
         "aiGateway": "google/gemini-3-pro-image",
+        "zenmux": "google/gemini-3-pro-image-preview",
         "openRouter": "google/gemini-3-pro-image-preview"
       },
       "pricing": {
         "input": "0.000002",
-        "output": "0.00012"
+        "output": "0.000012"
       },
       "context_length": 65536
     },

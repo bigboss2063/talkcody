@@ -180,6 +180,7 @@ class CustomProviderService {
       'deepseek',
       'ollama',
       'lmstudio',
+      'zenmux',
     ];
 
     // Required fields (ID is auto-generated from name, so not required here)

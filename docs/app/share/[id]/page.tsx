@@ -1,7 +1,7 @@
 // docs/app/share/[id]/page.tsx
 // Share viewing page
 
-import { Bot, Calendar, Clock, ExternalLink, Eye, Lock, MessageSquare } from 'lucide-react';
+import { Bot, Calendar, ExternalLink, Lock, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
@@ -173,15 +173,15 @@ export default async function SharePage({ params, searchParams }: SharePageProps
   if (result.requiresPassword) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-lg dark:border-gray-700/50 dark:bg-gradient-to-br dark:from-gray-900 dark:to-black dark:shadow-2xl dark:shadow-gray-900/50">
+        <div className="w-full max-w-md rounded-xl border border-gray-700/50 bg-gradient-to-br from-gray-900 to-black p-8 shadow-2xl shadow-gray-900/50">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-gradient-to-br dark:from-gray-800 dark:to-gray-900 dark:ring-1 dark:ring-gray-700">
-              <Lock className="h-6 w-6 text-blue-600 dark:text-gray-300" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-gray-800 to-gray-900 ring-1 ring-gray-700">
+              <Lock className="h-6 w-6 text-gray-300" />
             </div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h1 className="text-xl font-semibold text-white">
               Password Protected
             </h1>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-400">
               This conversation is protected. Enter the password to view.
             </p>
           </div>
@@ -196,19 +196,19 @@ export default async function SharePage({ params, searchParams }: SharePageProps
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="mb-4 text-2xl font-bold text-white">
             {result.error === 'Share not found'
               ? 'Share Not Found'
               : result.error === 'This share has expired'
                 ? 'Share Expired'
                 : 'Error'}
           </h1>
-          <p className="mb-6 text-gray-600 dark:text-gray-400">
+          <p className="mb-6 text-gray-400">
             {result.error || 'Unable to load this shared conversation.'}
           </p>
           <Link
             href="https://talkcody.com"
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gray-900 to-black px-4 py-2 text-white ring-1 ring-gray-700 transition-all hover:ring-gray-500 hover:shadow-lg hover:shadow-gray-700/50 dark:from-gray-800 dark:to-gray-900"
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gray-800 to-gray-900 px-4 py-2 text-white ring-1 ring-gray-700 transition-all hover:ring-gray-500 hover:shadow-lg hover:shadow-gray-700/50"
           >
             <ExternalLink className="h-4 w-4" />
             Go to TalkCody
@@ -232,26 +232,26 @@ export default async function SharePage({ params, searchParams }: SharePageProps
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800/50 dark:bg-black/80 dark:shadow-lg dark:shadow-gray-900/20">
+      <header className="sticky top-0 z-10 border-b border-gray-800/50 bg-black/80 shadow-lg shadow-gray-900/20 backdrop-blur">
         <div className="mx-auto max-w-4xl px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Logo and title */}
             <div className="flex items-center gap-3">
               <Link
                 href="https://talkcody.com"
-                className="flex items-center gap-2 text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-100 dark:hover:text-gray-300"
+                className="flex items-center gap-2 text-gray-100 transition-colors hover:text-gray-300"
               >
                 <Image
                   src="/logo.svg"
                   alt="TalkCody Logo"
                   width={24}
                   height={24}
-                  className="h-6 w-auto dark:invert"
+                  className="h-6 w-auto invert"
                 />
                 <span className="font-semibold">TalkCody</span>
               </Link>
-              <span className="text-gray-300 dark:text-gray-700">/</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-gray-600">/</span>
+              <span className="text-sm text-gray-400">
                 Shared Task
               </span>
             </div>
@@ -259,7 +259,7 @@ export default async function SharePage({ params, searchParams }: SharePageProps
             {/* CTA */}
             <Link
               href="https://talkcody.com/docs/introduction/client-downloads"
-              className="hidden rounded-lg bg-gradient-to-r from-gray-900 to-black px-4 py-2 text-sm font-medium text-white ring-1 ring-gray-700 transition-all hover:ring-gray-500 hover:shadow-lg hover:shadow-gray-700/50 dark:from-gray-800 dark:to-gray-900 sm:inline-flex"
+              className="hidden rounded-lg bg-gradient-to-r from-gray-800 to-gray-900 px-4 py-2 text-sm font-medium text-white ring-1 ring-gray-700 transition-all hover:ring-gray-500 hover:shadow-lg hover:shadow-gray-700/50 sm:inline-flex"
             >
               Try TalkCody Free
             </Link>
@@ -270,12 +270,12 @@ export default async function SharePage({ params, searchParams }: SharePageProps
       {/* Main content */}
       <main className="mx-auto max-w-4xl px-4 py-6">
         {/* Task info card */}
-        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700/50 dark:bg-gradient-to-br dark:from-gray-900 dark:to-black dark:shadow-xl dark:shadow-gray-900/30">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="mb-6 rounded-xl border border-gray-700/50 bg-gray-900 p-6 shadow-xl shadow-gray-900/30">
+          <h1 className="mb-4 text-2xl font-bold text-white">
             {snapshot.task.title}
           </h1>
 
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+          <div className="flex flex-wrap gap-4 text-sm text-gray-400">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4" />
               <span>Shared {formatDate(snapshot.metadata.sharedAt)}</span>
@@ -294,13 +294,13 @@ export default async function SharePage({ params, searchParams }: SharePageProps
         </div>
 
         {/* Messages */}
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700/50 dark:bg-gradient-to-br dark:from-gray-900 dark:to-black dark:shadow-xl dark:shadow-gray-900/30">
+        <div className="overflow-hidden rounded-xl border border-gray-700/50 bg-gray-900 shadow-xl shadow-gray-900/30">
           <ShareMessageList messages={snapshot.messages} />
         </div>
 
         {/* Footer CTA */}
-        <div className="mt-8 rounded-xl border border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 text-center dark:border-gray-700/50 dark:from-gray-900 dark:via-black dark:to-gray-900 dark:shadow-2xl dark:shadow-gray-900/50 dark:ring-1 dark:ring-gray-800/50">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="mt-8 rounded-xl border border-gray-700/50 bg-gray-900 p-6 text-center shadow-2xl shadow-gray-900/50 ring-1 ring-gray-800/50">
+          <h2 className="mb-4 text-lg font-semibold text-gray-100">
             TalkCody is a Free, Open Source AI Coding Agent.
           </h2>
           <Link
@@ -314,13 +314,13 @@ export default async function SharePage({ params, searchParams }: SharePageProps
       </main>
 
       {/* Footer */}
-      <footer className="mt-12 border-t border-gray-200 py-6 dark:border-gray-800/50">
-        <div className="mx-auto max-w-4xl px-4 text-center text-sm text-gray-500 dark:text-gray-500">
+      <footer className="mt-12 border-t border-gray-800/50 py-6">
+        <div className="mx-auto max-w-4xl px-4 text-center text-sm text-gray-500">
           <p>
             Powered by{' '}
             <Link
               href="https://talkcody.com"
-              className="text-blue-600 hover:underline dark:text-gray-300 dark:hover:text-white"
+              className="text-gray-300 hover:text-white hover:underline"
             >
               TalkCody
             </Link>

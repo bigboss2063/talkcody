@@ -93,6 +93,7 @@ describe('CustomModelService - Provider Endpoints Configuration', () => {
       'github_copilot',
       'ollama',
       'lmstudio',
+      'zenmux',
       'groq',
     ];
 

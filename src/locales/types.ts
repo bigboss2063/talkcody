@@ -1260,6 +1260,7 @@ export interface LocaleDefinition {
     aiGateway: { description: string };
     openRouter: { description: string };
     openai: { description: string };
+    zenmux: { description: string };
     zhipu: { description: string };
     MiniMax: { description: string };
     google: { description: string };

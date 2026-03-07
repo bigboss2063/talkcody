@@ -41,6 +41,7 @@ const PROVIDER_MODELS_ENDPOINTS: Record<string, string | null> = {
   moonshot: 'https://api.moonshot.cn/v1/models',
   kimi_coding: 'https://api.kimi.com/coding/v1/models',
   github_copilot: 'https://api.githubcopilot.com/models',
+  zenmux: 'https://zenmux.ai/api/v1/models',
   groq: 'https://api.groq.com/openai/v1/models',
   volcengine: null, // Volcengine doesn't support /v1/models endpoint
   alibaba: null, // Alibaba/DashScope doesn't support /v1/models endpoint

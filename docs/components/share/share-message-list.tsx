@@ -23,14 +23,14 @@ function ShareMessageListComponent({ messages }: ShareMessageListProps) {
 
   if (filteredMessages.length === 0) {
     return (
-      <div className="flex h-64 items-center justify-center text-gray-500 dark:text-gray-400">
+      <div className="flex h-64 items-center justify-center text-gray-400">
         No messages in this conversation.
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+    <div className="divide-y divide-gray-800">
       {filteredMessages.map((message) => (
         <ShareMessageItem key={message.id} message={message} />
       ))}

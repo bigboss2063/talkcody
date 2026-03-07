@@ -41,15 +41,15 @@ function ShareCodeBlockComponent({ children, className }: ShareCodeBlockProps) {
   };
 
   return (
-    <div className="share-code-block group relative my-4 overflow-hidden rounded-lg border border-gray-200/50 dark:border-gray-700/50">
+    <div className="share-code-block group relative my-4 overflow-hidden rounded-lg border border-gray-700/50">
       {/* Header with language and copy button */}
-      <div className="share-code-header flex items-center justify-between bg-gray-100/50 px-4 py-2 dark:bg-gray-800/50">
-        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+      <div className="share-code-header flex items-center justify-between bg-gray-800/50 px-4 py-2">
+        <span className="text-xs font-medium text-gray-400">
           {language || 'code'}
         </span>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-200"
           type="button"
         >
           {copied ? (
@@ -67,7 +67,7 @@ function ShareCodeBlockComponent({ children, className }: ShareCodeBlockProps) {
       </div>
 
       {/* Code content */}
-      <pre className="share-code-pre overflow-x-auto px-4 bg-gray-50 dark:bg-gray-900">
+      <pre className="share-code-pre overflow-x-auto px-4 bg-gray-900">
         <code className={className}>{children}</code>
       </pre>
     </div>

@@ -53,95 +53,113 @@ impl ImageGenerationService {
         let provider_model_name =
             ModelRegistry::resolve_provider_model_name(&model_key, &provider_id, models);
 
-        match provider_id.as_str() {
-            "openai" => {
-                let provider = registry
-                    .provider(&provider_id)
-                    .ok_or_else(|| "OpenAI provider not configured".to_string())?;
-                let client = OpenAiImageClient::new(provider.clone());
-                let images = client
-                    .generate(api_keys, &provider_model_name, request)
-                    .await?;
-                Ok(ImageGenerationResponse {
-                    provider: provider_id,
-                    images,
-                    request_id: None,
-                })
-            }
-            "aiGateway" => {
-                let provider = registry
-                    .provider(&provider_id)
-                    .ok_or_else(|| "aiGateway provider not configured".to_string())?;
-                let client = AIGatewayImageClient::new(provider.clone());
-                let images = client
-                    .generate(api_keys, &provider_model_name, request)
-                    .await?;
-                Ok(ImageGenerationResponse {
-                    provider: provider_id,
-                    images,
-                    request_id: None,
-                })
-            }
-            "google" => {
-                let provider = registry
-                    .provider(&provider_id)
-                    .ok_or_else(|| "Google provider not configured".to_string())?;
-                let client = GoogleImageClient::with_base_url(provider.base_url.clone());
-                let images = client
-                    .generate(api_keys, &provider_model_name, request)
-                    .await?;
-                Ok(ImageGenerationResponse {
-                    provider: provider_id,
-                    images,
-                    request_id: None,
-                })
-            }
-            "volcengine" => {
-                let provider = registry
-                    .provider(&provider_id)
-                    .ok_or_else(|| "Volcengine provider not configured".to_string())?;
-                let client = VolcengineImageClient::new(provider.clone());
-                let images = client
-                    .generate(api_keys, &provider_model_name, request)
-                    .await?;
-                Ok(ImageGenerationResponse {
-                    provider: provider_id,
-                    images,
-                    request_id: None,
-                })
-            }
-            "zhipu" => {
-                let provider = registry
-                    .provider(&provider_id)
-                    .ok_or_else(|| "Zhipu AI provider not configured".to_string())?;
-                let client = ZhipuImageClient::new(provider.clone());
-                let images = client
-                    .generate(api_keys, &provider_model_name, request)
-                    .await?;
-                Ok(ImageGenerationResponse {
-                    provider: provider_id,
-                    images,
-                    request_id: None,
-                })
-            }
-            "alibaba" => {
-                let provider = registry
-                    .provider(&provider_id)
-                    .ok_or_else(|| "Alibaba provider not configured".to_string())?;
-                let client = DashScopeImageClient::new(provider.clone());
-                let images = client
-                    .generate(api_keys, &provider_model_name, request)
-                    .await?;
-                Ok(ImageGenerationResponse {
-                    provider: provider_id,
-                    images,
-                    request_id: None,
-                })
-            }
-            _ => Err(format!(
-                "Image generation provider not supported: {} / 不支持的图片生成供应商: {}",
+        // Get provider config for base_url
+        let provider = registry.provider(&provider_id).ok_or_else(|| {
+            format!(
+                "Provider not configured: {} / 供应商未配置: {}",
                 provider_id, provider_id
-            )),
+            )
+        })?;
+
+        // Select client based on model type (model_key), not provider id or provider_model_name
+        // model_key is the canonical model identifier without provider prefixes
+        // Gemini/Imagen models use GoogleImageClient with provider's base_url
+        // Other models use OpenAI-compatible API
+        if Self::is_google_model(&model_key) {
+            // Use GoogleImageClient with the appropriate base_url for image generation
+            // For zenmux, gemini image generation uses a specific endpoint
+            let image_base_url =
+                Self::resolve_image_base_url(&provider_id, provider.base_url.clone());
+            let client =
+                GoogleImageClient::with_base_url_and_provider(image_base_url, provider_id.clone());
+            let images = client
+                .generate(api_keys, &provider_model_name, request)
+                .await?;
+            Ok(ImageGenerationResponse {
+                provider: provider_id,
+                images,
+                request_id: None,
+            })
+        } else {
+            // Use provider-specific clients for known providers
+            match provider_id.as_str() {
+                "aiGateway" => {
+                    let client = AIGatewayImageClient::new(provider.clone());
+                    let images = client
+                        .generate(api_keys, &provider_model_name, request)
+                        .await?;
+                    Ok(ImageGenerationResponse {
+                        provider: provider_id,
+                        images,
+                        request_id: None,
+                    })
+                }
+                "volcengine" => {
+                    let client = VolcengineImageClient::new(provider.clone());
+                    let images = client
+                        .generate(api_keys, &provider_model_name, request)
+                        .await?;
+                    Ok(ImageGenerationResponse {
+                        provider: provider_id,
+                        images,
+                        request_id: None,
+                    })
+                }
+                "zhipu" => {
+                    let client = ZhipuImageClient::new(provider.clone());
+                    let images = client
+                        .generate(api_keys, &provider_model_name, request)
+                        .await?;
+                    Ok(ImageGenerationResponse {
+                        provider: provider_id,
+                        images,
+                        request_id: None,
+                    })
+                }
+                "alibaba" => {
+                    let client = DashScopeImageClient::new(provider.clone());
+                    let images = client
+                        .generate(api_keys, &provider_model_name, request)
+                        .await?;
+                    Ok(ImageGenerationResponse {
+                        provider: provider_id,
+                        images,
+                        request_id: None,
+                    })
+                }
+                // Default: Use OpenAI-compatible image generation API
+                // Most providers (openai, zenmux for non-Gemini models, and custom providers) support this standard
+                _ => {
+                    let client = OpenAiImageClient::new(provider.clone());
+                    let images = client
+                        .generate(api_keys, &provider_model_name, request)
+                        .await?;
+                    Ok(ImageGenerationResponse {
+                        provider: provider_id,
+                        images,
+                        request_id: None,
+                    })
+                }
+            }
+        }
+    }
+
+    /// Check if the model is a Google model (Gemini or Imagen)
+    /// Uses model_key which is the canonical model identifier without provider prefixes
+    /// e.g., "gemini-3-flash"
+    fn is_google_model(model_key: &str) -> bool {
+        model_key.starts_with("gemini")
+    }
+
+    /// Resolve the base URL for image generation
+    /// Some providers have specific endpoints for image generation that differ from chat endpoints
+    fn resolve_image_base_url(provider_id: &str, default_base_url: String) -> String {
+        match provider_id {
+            // zenmux uses /api/vertex-ai/v1 for Gemini image generation
+            // The /v1 path is required for Vertex AI API
+            "zenmux" => "https://zenmux.ai/api/vertex-ai".to_string(),
+            // Default to the provider's standard base_url
+            _ => default_base_url,
         }
     }
 

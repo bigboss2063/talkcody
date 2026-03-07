@@ -12,8 +12,12 @@ export const metadata = {
 
 export default function ShareLayout({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <div className="min-h-screen bg-white dark:bg-gray-950">
+    <ThemeProvider
+      attribute="class"
+      forcedTheme="dark"
+      storageKey="share-theme"
+    >
+      <div className="min-h-screen bg-gray-950 text-gray-100">
         {children}
       </div>
     </ThemeProvider>

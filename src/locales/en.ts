@@ -1317,6 +1317,7 @@ const en: LocaleDefinition = {
     aiGateway: { description: 'Multi-model AI Gateway' },
     openRouter: { description: 'OpenRouter API Gateway' },
     openai: { description: 'Official OpenAI API' },
+    zenmux: { description: 'ZenMux OpenAI-Compatible API' },
     zhipu: { description: 'Zhipu GLM Models' },
     MiniMax: { description: 'MiniMax Models' },
     google: { description: 'Google Generative AI' },

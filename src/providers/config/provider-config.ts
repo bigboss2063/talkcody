@@ -1,4 +1,3 @@
-// src/providers/config/provider-config.ts
 import type { ProviderRegistry } from '@/types';
 
 export const PROVIDER_CONFIGS: ProviderRegistry = {
@@ -113,6 +112,15 @@ export const PROVIDER_CONFIGS: ProviderRegistry = {
     type: 'custom',
   },
 
+  zenmux: {
+    id: 'zenmux',
+    name: 'ZenMux',
+    apiKeyName: 'ZENMUX_API_KEY',
+    baseUrl: 'https://zenmux.ai/api/v1',
+    required: false,
+    type: 'openai-compatible',
+  },
+
   volcengine: {
     id: 'volcengine',
     name: 'Volcengine (ByteDance)',
@@ -197,16 +205,13 @@ export const PROVIDER_CONFIGS: ProviderRegistry = {
   },
 } as const;
 
-// Generate types from definitions
 export type ProviderIds = keyof typeof PROVIDER_CONFIGS;
 export const PROVIDER_IDS = Object.keys(PROVIDER_CONFIGS) as ProviderIds[];
 
-// Providers that support Coding Plan feature
 export const PROVIDERS_WITH_CODING_PLAN = Object.entries(PROVIDER_CONFIGS)
   .filter(([_, config]) => config.supportsCodingPlan)
   .map(([id]) => id);
 
-// Providers that support International mode
 export const PROVIDERS_WITH_INTERNATIONAL = Object.entries(PROVIDER_CONFIGS)
   .filter(([_, config]) => config.supportsInternational)
   .map(([id]) => id);

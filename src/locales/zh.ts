@@ -1275,6 +1275,7 @@ const zh: LocaleDefinition = {
     aiGateway: { description: '多模型 AI 网关' },
     openRouter: { description: 'OpenRouter API 网关' },
     openai: { description: 'OpenAI 官方 API' },
+    zenmux: { description: 'ZenMux OpenAI 兼容 API' },
     zhipu: { description: '智谱 GLM 模型' },
     MiniMax: { description: 'MiniMax 模型' },
     google: { description: 'Google 生成式 AI' },

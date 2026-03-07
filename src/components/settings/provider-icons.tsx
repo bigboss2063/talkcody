@@ -6,7 +6,6 @@ import {
   SiOpenaigym,
   SiVercel,
 } from '@icons-pack/react-simple-icons';
-import { Cloud, Zap } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 interface IconProps {
@@ -14,7 +13,6 @@ interface IconProps {
   className?: string;
 }
 
-// Image-based icon component for providers without simple-icons
 function createImageIcon(src: string, alt: string, invertOnDark = false) {
   return function ImageIcon({ size = 16, className }: IconProps) {
     const darkModeClass = invertOnDark ? 'dark:invert dark:brightness-0 dark:contrast-100' : '';
@@ -57,9 +55,9 @@ export const PROVIDER_ICONS: Record<string, ComponentType<IconProps>> = {
   groq: createImageIcon('/icons/providers/groq.svg', 'Groq', true),
   volcengine: createImageIcon('/icons/providers/volcengine.svg', 'Volcengine'),
   alibaba: createImageIcon('/icons/providers/alibaba.svg', 'Alibaba'),
+  zenmux: createImageIcon('/icons/providers/zenmux.svg', 'Zenmux', true),
 };
 
-// Provider icon component
 export function ProviderIcon({
   providerId,
   size = 16,
