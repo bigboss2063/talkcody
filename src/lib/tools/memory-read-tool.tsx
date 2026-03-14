@@ -3,10 +3,7 @@ import { GenericToolDoing } from '@/components/tools/generic-tool-doing';
 import { GenericToolResult } from '@/components/tools/generic-tool-result';
 import { createTool } from '@/lib/create-tool';
 import { resolveMemoryWorkspaceRoot } from '@/lib/tools/memory-workspace-root';
-import {
-  type MemoryDocument,
-  memoryService,
-} from '@/services/memory/memory-service';
+import { type MemoryDocument, memoryService } from '@/services/memory/memory-service';
 
 type MemoryReadSuccess = {
   success: true;
@@ -46,10 +43,14 @@ function buildReadGuidance(target: 'index' | 'topic' | 'topics' | 'audit'): stri
   }
 
   if (target === 'audit') {
-    return ['Audit results describe index-to-topic alignment only. They do not include actual topic-file contents.'];
+    return [
+      'Audit results describe index-to-topic alignment only. They do not include actual topic-file contents.',
+    ];
   }
 
-  return ['You have read a concrete topic file. You can now rely on that file\'s contents in your answer.'];
+  return [
+    "You have read a concrete topic file. You can now rely on that file's contents in your answer.",
+  ];
 }
 
 function renderDocument(document: MemoryDocument) {
@@ -74,15 +75,21 @@ export const memoryRead = createTool({
     scope: z
       .enum(['global', 'project', 'all'])
       .default('all')
-      .describe('Which memory scope to inspect. Use "all" only when you intentionally want both global and project results.'),
+      .describe(
+        'Which memory scope to inspect. Use "all" only when you intentionally want both global and project results.'
+      ),
     target: z
       .enum(['index', 'topic', 'topics', 'audit'])
       .default('index')
-      .describe('Use "index" for MEMORY.md, "topics" to list topic files, "topic" to read one file by name, or "audit" for index/topic consistency checks.'),
+      .describe(
+        'Use "index" for MEMORY.md, "topics" to list topic files, "topic" to read one file by name, or "audit" for index/topic consistency checks.'
+      ),
     file_name: z
       .string()
       .optional()
-      .describe('Required when target="topic". Must be a markdown file name such as user.md or architecture.md.'),
+      .describe(
+        'Required when target="topic". Must be a markdown file name such as user.md or architecture.md.'
+      ),
   }),
   canConcurrent: true,
   execute: async ({ scope, target, file_name }, context): Promise<MemoryReadResult> => {
@@ -118,7 +125,10 @@ export const memoryRead = createTool({
                 ...(await memoryService.listTopicDocuments('global')),
                 ...(await memoryService.listTopicDocuments('project', { workspaceRoot })),
               ]
-            : await memoryService.listTopicDocuments(scope, { workspaceRoot, taskId: context.taskId });
+            : await memoryService.listTopicDocuments(scope, {
+                workspaceRoot,
+                taskId: context.taskId,
+              });
         return {
           success: true,
           mode: 'topics',

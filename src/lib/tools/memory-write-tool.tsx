@@ -47,19 +47,28 @@ export const memoryWrite = createTool({
     mode: z
       .enum(['append', 'replace'])
       .default('append')
-      .describe('Use append for incremental notes. For MEMORY.md, prefer replace when rewriting or revising existing routes.'),
+      .describe(
+        'Use append for incremental notes. For MEMORY.md, prefer replace when rewriting or revising existing routes.'
+      ),
     target: z
       .enum(['index', 'topic'])
       .default('index')
-      .describe('Use index for MEMORY.md or topic for one specific markdown topic file. Prefer updating an existing topic when the memory belongs to the same stable subject.'),
+      .describe(
+        'Use index for MEMORY.md or topic for one specific markdown topic file. Prefer updating an existing topic when the memory belongs to the same stable subject.'
+      ),
     file_name: z
       .string()
       .optional()
-      .describe('Required when target="topic". Must be a markdown file name such as user.md or architecture.md. Reuse an existing topic file when the new memory belongs to the same long-term subject.'),
+      .describe(
+        'Required when target="topic". Must be a markdown file name such as user.md or architecture.md. Reuse an existing topic file when the new memory belongs to the same long-term subject.'
+      ),
     content: z.string().min(1),
   }),
   canConcurrent: false,
-  execute: async ({ scope, mode, target, file_name, content }, context): Promise<MemoryWriteResult> => {
+  execute: async (
+    { scope, mode, target, file_name, content },
+    context
+  ): Promise<MemoryWriteResult> => {
     if (target === 'topic' && !file_name?.trim()) {
       return {
         success: false,

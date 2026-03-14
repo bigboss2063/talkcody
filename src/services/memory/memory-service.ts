@@ -141,12 +141,11 @@ function isAbsolutePath(value: string): boolean {
 
 function joinPathSegments(basePath: string, ...segments: string[]): string {
   const base = normalizeFsPath(basePath);
-  const prefix = /^[A-Za-z]:\/$/.test(base)
-    ? base.slice(0, 2)
-    : base.startsWith('/')
-      ? '/'
-      : '';
-  const parts = [...splitPathSegments(base), ...segments.flatMap((segment) => splitPathSegments(segment))];
+  const prefix = /^[A-Za-z]:\/$/.test(base) ? base.slice(0, 2) : base.startsWith('/') ? '/' : '';
+  const parts = [
+    ...splitPathSegments(base),
+    ...segments.flatMap((segment) => splitPathSegments(segment)),
+  ];
   const resolved: string[] = [];
 
   for (const part of parts) {
@@ -206,7 +205,7 @@ function ensureTopicFileName(fileName: string): string {
     throw new Error('Topic file name is required');
   }
 
-  if (trimmed === MEMORY_WORKSPACE_INDEX_FILE_NAME) {
+  if (trimmed.toLowerCase() === MEMORY_WORKSPACE_INDEX_FILE_NAME.toLowerCase()) {
     throw new Error('Topic file name cannot be MEMORY.md');
   }
 
@@ -225,7 +224,10 @@ function ensureTopicFileName(fileName: string): string {
   return trimmed;
 }
 
-function getInjectedLineSlice(content: string, maxLines = MEMORY_INDEX_INJECTION_LINE_LIMIT): string {
+function getInjectedLineSlice(
+  content: string,
+  maxLines = MEMORY_INDEX_INJECTION_LINE_LIMIT
+): string {
   const lines = normalizeLineEndings(content).split('\n');
   return lines.slice(0, maxLines).join('\n').trimEnd();
 }
@@ -285,16 +287,6 @@ async function ensureDirectory(directoryPath: string): Promise<void> {
   }
 }
 
-async function ensureParentDirectory(filePath: string): Promise<void> {
-  const normalized = normalizeFsPath(filePath);
-  const segments = normalized.split('/');
-  segments.pop();
-  const directoryPath = segments.join('/');
-  if (directoryPath) {
-    await ensureDirectory(directoryPath);
-  }
-}
-
 async function resolveGlobalWorkspace(): Promise<MemoryWorkspace> {
   const appDir = await appDataDir();
   const path = await join(appDir, MEMORY_WORKSPACE_DIRECTORY_NAME, GLOBAL_MEMORY_WORKSPACE_NAME);
@@ -311,6 +303,18 @@ async function resolveGlobalWorkspace(): Promise<MemoryWorkspace> {
       sourcePath: path,
     },
   };
+}
+
+async function resolveGitCommonDirectory(gitDirPath: string): Promise<string> {
+  const normalizedGitDir = normalizeFsPath(gitDirPath);
+  const commonDirPath = await join(normalizedGitDir, 'commondir');
+  const { content } = await safeReadTextFile(commonDirPath);
+  const commonDirValue = content?.trim();
+  if (commonDirValue) {
+    return resolvePathFrom(normalizedGitDir, commonDirValue);
+  }
+
+  return normalizedGitDir.replace(/\/worktrees\/[^/]+$/, '');
 }
 
 async function resolveProjectWorkspaceIdentity(
@@ -334,29 +338,26 @@ async function resolveProjectWorkspaceIdentity(
     const dotGitContent = (await readTextFile(dotGitPath)).trim();
     const gitDirMatch = /^gitdir:\s*(.+)$/im.exec(dotGitContent);
     if (!gitDirMatch) {
+      const commonDir = await resolveGitCommonDirectory(dotGitPath);
       return {
         kind: 'git',
-        key: `git-${hashString(normalizedRoot)}`,
-        sourcePath: normalizedRoot,
+        key: `git-${hashString(commonDir)}`,
+        sourcePath: commonDir,
       };
     }
 
     const gitDirValue = gitDirMatch[1];
     if (!gitDirValue) {
+      const commonDir = await resolveGitCommonDirectory(dotGitPath);
       return {
         kind: 'git',
-        key: `git-${hashString(normalizedRoot)}`,
-        sourcePath: normalizedRoot,
+        key: `git-${hashString(commonDir)}`,
+        sourcePath: commonDir,
       };
     }
 
     const gitDir = resolvePathFrom(normalizedRoot, gitDirValue.trim());
-    const gitDirSegments = splitPathSegments(gitDir);
-    const worktreesIndex = gitDirSegments.lastIndexOf('worktrees');
-    const commonDir =
-      worktreesIndex > 0
-        ? joinPathSegments('/', ...gitDirSegments.slice(0, worktreesIndex))
-        : gitDir;
+    const commonDir = await resolveGitCommonDirectory(gitDir);
 
     return {
       kind: 'git',
@@ -364,10 +365,11 @@ async function resolveProjectWorkspaceIdentity(
       sourcePath: normalizeFsPath(commonDir),
     };
   } catch {
+    const commonDir = await resolveGitCommonDirectory(dotGitPath);
     return {
       kind: 'git',
-      key: `git-${hashString(normalizedRoot)}`,
-      sourcePath: normalizedRoot,
+      key: `git-${hashString(commonDir)}`,
+      sourcePath: commonDir,
     };
   }
 }
@@ -563,7 +565,15 @@ class MemoryService {
 
     const path = await join(workspace.path, topicFileName);
     const { content, exists: fileExists } = await safeReadTextFile(path);
-    return createDocument(scope, 'topic', path, content ?? '', fileExists, workspace.path, 'topic_file');
+    return createDocument(
+      scope,
+      'topic',
+      path,
+      content ?? '',
+      fileExists,
+      workspace.path,
+      'topic_file'
+    );
   }
 
   async writeGlobal(content: string): Promise<MemoryDocument> {
@@ -733,7 +743,10 @@ class MemoryService {
         : await this.getProjectMemoryDocument(options.workspaceRoot);
     const topics = await this.listTopicDocuments(scope, options);
     const indexedTopicFiles = extractIndexedTopicFiles(indexDocument.content);
-    const topicFiles = topics.map((document) => document.fileName ?? '').filter(Boolean).sort();
+    const topicFiles = topics
+      .map((document) => document.fileName ?? '')
+      .filter(Boolean)
+      .sort();
     const indexedSet = new Set(indexedTopicFiles);
     const topicSet = new Set(topicFiles);
 

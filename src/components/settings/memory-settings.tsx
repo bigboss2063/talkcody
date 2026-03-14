@@ -127,7 +127,8 @@ const EN_COPY: MemoryCopy = {
 
 const ZH_COPY: MemoryCopy = {
   title: '自动记忆工作区',
-  description: '以索引化 markdown 工作区的方式管理 TalkCody 自动记忆。MEMORY.md 是路由索引，topic 文件保存详细笔记。',
+  description:
+    '以索引化 markdown 工作区的方式管理 TalkCody 自动记忆。MEMORY.md 是路由索引，topic 文件保存详细笔记。',
   injectionTitle: '提示词注入',
   injectionDescription: '这些开关只影响自动记忆 provider。静态项目指令 provider 仍独立存在。',
   storageNote: '关闭某一层记忆只会停止注入，不会删除已有的 MEMORY.md 或 topic 文件。',
@@ -138,7 +139,8 @@ const ZH_COPY: MemoryCopy = {
   indexTab: '索引',
   topicsTab: 'Topic',
   workspaceTitle: '记忆工作区',
-  workspaceDescription: '可以直接编辑 MEMORY.md，也可以切换到 topic 文件视图。只有 MEMORY.md 的前 200 行会被注入到提示词。',
+  workspaceDescription:
+    '可以直接编辑 MEMORY.md，也可以切换到 topic 文件视图。只有 MEMORY.md 的前 200 行会被注入到提示词。',
   workspaceRoot: '项目根目录',
   indexPath: 'MEMORY.md 路径',
   topicCount: 'Topic 文件数',
@@ -204,7 +206,9 @@ function pickSelectedTopicState(
     return {
       selectedTopicOriginalName: null,
       topicEditorName: previousState.selectedTopicOriginalName ? '' : previousState.topicEditorName,
-      topicEditorContent: previousState.selectedTopicOriginalName ? '' : previousState.topicEditorContent,
+      topicEditorContent: previousState.selectedTopicOriginalName
+        ? ''
+        : previousState.topicEditorContent,
     };
   }
 
@@ -217,7 +221,9 @@ function pickSelectedTopicState(
 
 function buildNewTopicFileName(topics: MemoryDocument[]): string {
   const existingNames = new Set(
-    topics.map((topic) => topic.fileName?.toLowerCase()).filter((fileName): fileName is string => Boolean(fileName))
+    topics
+      .map((topic) => topic.fileName?.toLowerCase())
+      .filter((fileName): fileName is string => Boolean(fileName))
   );
 
   const baseName = 'untitled-topic';
@@ -317,47 +323,49 @@ export function MemorySettings() {
   );
 
   const loadMemory = useCallback(
-    async (preferredTopicSelections: Partial<Record<MemoryScope, string | null>> = {}): Promise<boolean> => {
-    const requestId = loadRequestIdRef.current + 1;
-    loadRequestIdRef.current = requestId;
-    setIsLoading(true);
+    async (
+      preferredTopicSelections: Partial<Record<MemoryScope, string | null>> = {}
+    ): Promise<boolean> => {
+      const requestId = loadRequestIdRef.current + 1;
+      loadRequestIdRef.current = requestId;
+      setIsLoading(true);
 
-    try {
-      const projectRoot = await resolveProjectRoot();
-      const [nextGlobal, nextProject] = await Promise.all([
-        loadWorkspaceState(
-          'global',
-          null,
-          workspacesRef.current.global,
-          preferredTopicSelections.global
-        ),
-        loadWorkspaceState(
-          'project',
-          projectRoot,
-          workspacesRef.current.project,
-          preferredTopicSelections.project
-        ),
-      ]);
+      try {
+        const projectRoot = await resolveProjectRoot();
+        const [nextGlobal, nextProject] = await Promise.all([
+          loadWorkspaceState(
+            'global',
+            null,
+            workspacesRef.current.global,
+            preferredTopicSelections.global
+          ),
+          loadWorkspaceState(
+            'project',
+            projectRoot,
+            workspacesRef.current.project,
+            preferredTopicSelections.project
+          ),
+        ]);
 
-      if (loadRequestIdRef.current !== requestId) {
+        if (loadRequestIdRef.current !== requestId) {
+          return false;
+        }
+
+        setWorkspaces({
+          global: nextGlobal,
+          project: nextProject,
+        });
+        return true;
+      } catch {
+        if (loadRequestIdRef.current === requestId) {
+          toast.error(copy.loadFailed);
+        }
         return false;
+      } finally {
+        if (loadRequestIdRef.current === requestId) {
+          setIsLoading(false);
+        }
       }
-
-      setWorkspaces({
-        global: nextGlobal,
-        project: nextProject,
-      });
-      return true;
-    } catch {
-      if (loadRequestIdRef.current === requestId) {
-        toast.error(copy.loadFailed);
-      }
-      return false;
-    } finally {
-      if (loadRequestIdRef.current === requestId) {
-        setIsLoading(false);
-      }
-    }
     },
     [copy.loadFailed, loadWorkspaceState, resolveProjectRoot]
   );
@@ -646,19 +654,19 @@ export function MemorySettings() {
 
             {selectedScope === 'global' && (
               <div className="space-y-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-medium">{copy.globalTitle}</h3>
-                <p className="text-sm text-muted-foreground">{copy.globalDescription}</p>
-              </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium">{copy.globalTitle}</h3>
+                  <p className="text-sm text-muted-foreground">{copy.globalDescription}</p>
+                </div>
               </div>
             )}
 
             {selectedScope === 'project' && (
               <div className="space-y-4">
-              <div className="space-y-1">
-                <h3 className="text-sm font-medium">{copy.projectTitle}</h3>
-                <p className="text-sm text-muted-foreground">{copy.projectDescription}</p>
-              </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium">{copy.projectTitle}</h3>
+                  <p className="text-sm text-muted-foreground">{copy.projectDescription}</p>
+                </div>
               </div>
             )}
           </div>
@@ -668,7 +676,7 @@ export function MemorySettings() {
               <span className="font-medium">{copy.workspaceRoot}:</span>{' '}
               <span className="font-mono">
                 {selectedScope === 'project'
-                  ? activeWorkspace.rootPath ?? copy.noProject
+                  ? (activeWorkspace.rootPath ?? copy.noProject)
                   : copy.globalTitle}
               </span>
             </div>
@@ -677,7 +685,8 @@ export function MemorySettings() {
               <span className="font-mono">{activeWorkspace.indexPath ?? '-'}</span>
             </div>
             <div>
-              <span className="font-medium">{copy.topicCount}:</span> {activeWorkspace.topics.length}
+              <span className="font-medium">{copy.topicCount}:</span>{' '}
+              {activeWorkspace.topics.length}
             </div>
           </div>
 
@@ -701,117 +710,127 @@ export function MemorySettings() {
 
             {selectedView === 'index' && (
               <div className="space-y-4">
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">{activeScopeTitle}</Label>
-                <p className="text-sm text-muted-foreground">{activeScopeDescription}</p>
-              </div>
-              <Textarea
-                value={activeWorkspace.indexContent}
-                onChange={(event) => setIndexContent(selectedScope, event.target.value)}
-                className="min-h-[240px] font-mono text-sm"
-                disabled={
-                  isLoading ||
-                  isSavingIndex ||
-                  (selectedScope === 'project' && !activeWorkspace.rootPath)
-                }
-                placeholder={copy.indexEditorPlaceholder}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={handleSaveIndex}
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">{activeScopeTitle}</Label>
+                  <p className="text-sm text-muted-foreground">{activeScopeDescription}</p>
+                </div>
+                <Textarea
+                  value={activeWorkspace.indexContent}
+                  onChange={(event) => setIndexContent(selectedScope, event.target.value)}
+                  className="min-h-[240px] font-mono text-sm"
                   disabled={
                     isLoading ||
                     isSavingIndex ||
                     (selectedScope === 'project' && !activeWorkspace.rootPath)
                   }
-                >
-                  {isSavingIndex ? copy.savingAction : copy.saveAction}
-                </Button>
-                <Button variant="outline" onClick={handleReload} disabled={isLoading || isSavingIndex}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {copy.refreshAction}
-                </Button>
-              </div>
-              {selectedScope === 'project' && !activeWorkspace.rootPath && (
-                <p className="text-sm text-muted-foreground">{copy.projectUnavailable}</p>
-              )}
+                  placeholder={copy.indexEditorPlaceholder}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={handleSaveIndex}
+                    disabled={
+                      isLoading ||
+                      isSavingIndex ||
+                      (selectedScope === 'project' && !activeWorkspace.rootPath)
+                    }
+                  >
+                    {isSavingIndex ? copy.savingAction : copy.saveAction}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleReload}
+                    disabled={isLoading || isSavingIndex}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    {copy.refreshAction}
+                  </Button>
+                </div>
+                {selectedScope === 'project' && !activeWorkspace.rootPath && (
+                  <p className="text-sm text-muted-foreground">{copy.projectUnavailable}</p>
+                )}
               </div>
             )}
 
             {selectedView === 'topics' && (
               <div className="space-y-4">
-              {selectedScope === 'project' && !activeWorkspace.rootPath ? (
-                <p className="text-sm text-muted-foreground">{copy.projectUnavailable}</p>
-              ) : (
-                <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                  <div className="space-y-2 rounded-md border p-3">
-                    <Button variant="outline" className="w-full" onClick={handleCreateTopic}>
-                      {copy.newTopicAction}
-                    </Button>
-                    <div className="space-y-2">
-                      {activeWorkspace.topics.map((topic) => (
-                        <Button
-                          key={topic.fileName ?? topic.path ?? 'topic'}
-                          variant={
-                            activeWorkspace.selectedTopicOriginalName === topic.fileName
-                              ? 'default'
-                              : 'ghost'
-                          }
-                          className="w-full justify-start font-mono text-xs"
-                          onClick={() => handleSelectTopic(selectedScope, topic)}
-                        >
-                          {topic.fileName}
-                        </Button>
-                      ))}
+                {selectedScope === 'project' && !activeWorkspace.rootPath ? (
+                  <p className="text-sm text-muted-foreground">{copy.projectUnavailable}</p>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                    <div className="space-y-2 rounded-md border p-3">
+                      <Button variant="outline" className="w-full" onClick={handleCreateTopic}>
+                        {copy.newTopicAction}
+                      </Button>
+                      <div className="space-y-2">
+                        {activeWorkspace.topics.map((topic) => (
+                          <Button
+                            key={topic.fileName ?? topic.path ?? 'topic'}
+                            variant={
+                              activeWorkspace.selectedTopicOriginalName === topic.fileName
+                                ? 'default'
+                                : 'ghost'
+                            }
+                            className="w-full justify-start font-mono text-xs"
+                            onClick={() => handleSelectTopic(selectedScope, topic)}
+                          >
+                            {topic.fileName}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <Label htmlFor="memory-topic-name">{copy.topicFileName}</Label>
-                      <Input
-                        id="memory-topic-name"
-                        value={activeWorkspace.topicEditorName}
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="memory-topic-name">{copy.topicFileName}</Label>
+                        <Input
+                          id="memory-topic-name"
+                          value={activeWorkspace.topicEditorName}
+                          onChange={(event) =>
+                            setTopicEditorState(selectedScope, {
+                              topicEditorName: event.target.value,
+                            })
+                          }
+                          placeholder={copy.topicPlaceholder}
+                          disabled={isLoading || isSavingTopic}
+                        />
+                      </div>
+                      <Textarea
+                        value={activeWorkspace.topicEditorContent}
                         onChange={(event) =>
-                          setTopicEditorState(selectedScope, { topicEditorName: event.target.value })
+                          setTopicEditorState(selectedScope, {
+                            topicEditorContent: event.target.value,
+                          })
                         }
-                        placeholder={copy.topicPlaceholder}
+                        className="min-h-[240px] font-mono text-sm"
                         disabled={isLoading || isSavingTopic}
+                        placeholder={copy.topicEditorPlaceholder}
                       />
+                      <div className="flex flex-wrap gap-2">
+                        <Button onClick={handleSaveTopic} disabled={isLoading || isSavingTopic}>
+                          {isSavingTopic ? copy.savingAction : copy.saveAction}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleDeleteTopic}
+                          disabled={isLoading || isSavingTopic}
+                        >
+                          {copy.deleteAction}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleReload}
+                          disabled={isLoading || isSavingTopic}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          {copy.refreshAction}
+                        </Button>
+                      </div>
+                      {!activeWorkspace.topicEditorName && !activeWorkspace.topicEditorContent && (
+                        <p className="text-sm text-muted-foreground">{copy.selectTopic}</p>
+                      )}
                     </div>
-                    <Textarea
-                      value={activeWorkspace.topicEditorContent}
-                      onChange={(event) =>
-                        setTopicEditorState(selectedScope, {
-                          topicEditorContent: event.target.value,
-                        })
-                      }
-                      className="min-h-[240px] font-mono text-sm"
-                      disabled={isLoading || isSavingTopic}
-                      placeholder={copy.topicEditorPlaceholder}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={handleSaveTopic} disabled={isLoading || isSavingTopic}>
-                        {isSavingTopic ? copy.savingAction : copy.saveAction}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleDeleteTopic}
-                        disabled={isLoading || isSavingTopic}
-                      >
-                        {copy.deleteAction}
-                      </Button>
-                      <Button variant="outline" onClick={handleReload} disabled={isLoading || isSavingTopic}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        {copy.refreshAction}
-                      </Button>
-                    </div>
-                    {!activeWorkspace.topicEditorName && !activeWorkspace.topicEditorContent && (
-                      <p className="text-sm text-muted-foreground">{copy.selectTopic}</p>
-                    )}
                   </div>
-                </div>
-              )}
+                )}
               </div>
             )}
           </div>

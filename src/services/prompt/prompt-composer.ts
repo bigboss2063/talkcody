@@ -28,7 +28,7 @@ function buildAutoMemoryGuidance(enabledProviderIds: Set<string>): string {
     `- Only the first ${MEMORY_INDEX_INJECTION_LINE_LIMIT} lines of each MEMORY.md are injected automatically.`,
     '- Start with the injected MEMORY.md lines. If they do not show the route you need, read the full MEMORY.md before concluding the memory is missing.',
     '- Treat MEMORY.md as a routing index, not the detailed memory payload. If it points to a relevant topic file, read that topic file before answering from memory.',
-    '- Never claim that you know a topic file\'s contents unless you have actually read that topic file.',
+    "- Never claim that you know a topic file's contents unless you have actually read that topic file.",
     '- When writing memory, keep MEMORY.md synchronized with topic files, keep each topic focused on one stable subject, and avoid writing duplicate topic routes or duplicate memory facts.',
     '- Save durable observations such as user preferences, repository conventions, architecture notes, commands, and recurring workflows.',
     '- Do not save temporary task state, secrets, credentials, one-off troubleshooting noise, or instructions that belong in project instruction files.',

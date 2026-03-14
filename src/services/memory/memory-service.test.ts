@@ -198,6 +198,20 @@ describe('memoryService', () => {
     expect(loaded.content).toContain('architecture.md');
   });
 
+  it('shares project memory between a main checkout and its linked worktree', async () => {
+    directoryState.add('/repos/source/.git');
+    fileState.set('/repo-feature/.git', 'gitdir: /repos/source/.git/worktrees/feature\n');
+
+    const written = await memoryService.writeProjectMemoryDocument(
+      '/repos/source',
+      '# Memory Index\n- See architecture.md'
+    );
+    const loaded = await memoryService.getProjectMemoryDocument('/repo-feature');
+
+    expect(loaded.path).toBe(written.path);
+    expect(loaded.content).toContain('architecture.md');
+  });
+
   it('supports topic-file writes, reads, renames, deletes, and listing', async () => {
     await memoryService.writeProjectMemoryDocument('/repo', '# Memory Index\n- architecture.md');
     const written = await memoryService.writeTopicDocument(
@@ -239,6 +253,18 @@ describe('memoryService', () => {
     await expect(
       memoryService.writeTopicDocument('global', 'nested/topic.md', 'Should fail')
     ).rejects.toThrow('Topic file name must not contain path separators');
+  });
+
+  it('rejects case-insensitive MEMORY.md topic names for writes and renames', async () => {
+    await expect(
+      memoryService.writeTopicDocument('global', 'memory.md', 'Should fail')
+    ).rejects.toThrow('Topic file name cannot be MEMORY.md');
+
+    await memoryService.writeTopicDocument('global', 'architecture.md', '## Architecture');
+
+    await expect(
+      memoryService.renameTopicDocument('global', 'architecture.md', 'Memory.md')
+    ).rejects.toThrow('Topic file name cannot be MEMORY.md');
   });
 
   it('limits injected document content to the first 200 lines of MEMORY.md', async () => {
