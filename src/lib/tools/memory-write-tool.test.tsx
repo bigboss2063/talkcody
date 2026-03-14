@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockMemoryService,
@@ -7,12 +7,10 @@ const {
   mockDatabaseService,
 } = vi.hoisted(() => ({
   mockMemoryService: {
-    writeGlobal: vi.fn(),
-    appendGlobal: vi.fn(),
-    writeTopicDocument: vi.fn(),
-    appendTopicDocument: vi.fn(),
-    writeProjectMemoryDocument: vi.fn(),
-    appendProjectMemoryDocument: vi.fn(),
+    saveIndex: vi.fn(),
+    appendIndex: vi.fn(),
+    saveTopic: vi.fn(),
+    appendTopic: vi.fn(),
   },
   mockGetEffectiveWorkspaceRoot: vi.fn(),
   mockSettingsManager: {
@@ -55,47 +53,35 @@ describe('memoryWrite tool', () => {
     mockSettingsManager.getProject.mockReturnValue('default');
     mockGetEffectiveWorkspaceRoot.mockResolvedValue('/repo-from-task');
     mockDatabaseService.getProject.mockResolvedValue(null);
-    mockMemoryService.writeGlobal.mockResolvedValue({
+    mockMemoryService.saveIndex.mockResolvedValue({
       scope: 'global',
       path: '/app/memory/global/MEMORY.md',
       content: 'global memory',
       exists: true,
     });
-    mockMemoryService.appendGlobal.mockResolvedValue({
+    mockMemoryService.appendIndex.mockResolvedValue({
       scope: 'global',
       path: '/app/memory/global/MEMORY.md',
       content: 'global memory',
       exists: true,
     });
-    mockMemoryService.writeTopicDocument.mockResolvedValue({
+    mockMemoryService.saveTopic.mockResolvedValue({
       scope: 'global',
       path: '/app/memory/global/user.md',
       content: 'user memory',
       exists: true,
     });
-    mockMemoryService.appendTopicDocument.mockResolvedValue({
+    mockMemoryService.appendTopic.mockResolvedValue({
       scope: 'global',
       path: '/app/memory/global/user.md',
       content: 'user memory',
-      exists: true,
-    });
-    mockMemoryService.writeProjectMemoryDocument.mockResolvedValue({
-      scope: 'project',
-      path: '/app/memory/projects/repo/MEMORY.md',
-      content: 'project memory',
-      exists: true,
-    });
-    mockMemoryService.appendProjectMemoryDocument.mockResolvedValue({
-      scope: 'project',
-      path: '/app/memory/projects/repo/MEMORY.md',
-      content: 'project memory',
       exists: true,
     });
   });
 
   it('uses the current root path when taskId is missing for project memory writes', async () => {
     mockSettingsManager.getCurrentRootPath.mockReturnValue('/repo-from-settings');
-    mockMemoryService.appendProjectMemoryDocument.mockResolvedValueOnce({
+    mockMemoryService.appendIndex.mockResolvedValueOnce({
       scope: 'project',
       path: '/app/memory/projects/repo-from-settings/MEMORY.md',
       content: 'The stack is React and TypeScript.',
@@ -113,8 +99,11 @@ describe('memoryWrite tool', () => {
 
     expect(mockGetEffectiveWorkspaceRoot).not.toHaveBeenCalled();
     expect(mockSettingsManager.getCurrentRootPath).toHaveBeenCalled();
-    expect(mockMemoryService.appendProjectMemoryDocument).toHaveBeenCalledWith(
-      '/repo-from-settings',
+    expect(mockMemoryService.appendIndex).toHaveBeenCalledWith(
+      {
+        scope: 'project',
+        workspaceRoot: '/repo-from-settings',
+      },
       'The stack is React and TypeScript.'
     );
     expect(result).toMatchObject({
@@ -131,7 +120,7 @@ describe('memoryWrite tool', () => {
       name: 'Project One',
       root_path: '/repo-from-project',
     });
-    mockMemoryService.appendProjectMemoryDocument.mockResolvedValueOnce({
+    mockMemoryService.appendIndex.mockResolvedValueOnce({
       scope: 'project',
       path: '/app/memory/projects/repo-from-project/MEMORY.md',
       content: 'The stack is React and TypeScript.',
@@ -151,8 +140,11 @@ describe('memoryWrite tool', () => {
     expect(mockSettingsManager.getCurrentRootPath).toHaveBeenCalled();
     expect(mockSettingsManager.getProject).toHaveBeenCalled();
     expect(mockDatabaseService.getProject).toHaveBeenCalledWith('project-1');
-    expect(mockMemoryService.appendProjectMemoryDocument).toHaveBeenCalledWith(
-      '/repo-from-project',
+    expect(mockMemoryService.appendIndex).toHaveBeenCalledWith(
+      {
+        scope: 'project',
+        workspaceRoot: '/repo-from-project',
+      },
       'The stack is React and TypeScript.'
     );
     expect(result).toMatchObject({
@@ -175,7 +167,7 @@ describe('memoryWrite tool', () => {
     );
 
     expect(mockGetEffectiveWorkspaceRoot).not.toHaveBeenCalled();
-    expect(mockMemoryService.appendProjectMemoryDocument).not.toHaveBeenCalled();
+    expect(mockMemoryService.appendIndex).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       success: false,
       error: 'Workspace root is missing.',
@@ -188,7 +180,7 @@ describe('memoryWrite tool', () => {
 
   it('does not allow silent project-to-global fallback after a project write error', async () => {
     mockGetEffectiveWorkspaceRoot.mockResolvedValue('/repo-from-task');
-    mockMemoryService.appendProjectMemoryDocument.mockRejectedValueOnce(new Error('Disk is read-only'));
+    mockMemoryService.appendIndex.mockRejectedValueOnce(new Error('Disk is read-only'));
 
     const result = await memoryWrite.execute(
       {
@@ -244,8 +236,10 @@ describe('memoryWrite tool', () => {
       toolContext
     );
 
-    expect(mockMemoryService.writeTopicDocument).toHaveBeenCalledWith(
-      'global',
+    expect(mockMemoryService.saveTopic).toHaveBeenCalledWith(
+      {
+        scope: 'global',
+      },
       'user.md',
       'Remember this user preference.'
     );
@@ -274,7 +268,12 @@ describe('memoryWrite tool', () => {
       toolContext
     );
 
-    expect(mockMemoryService.appendGlobal).toHaveBeenCalledWith('- user.md: User profile');
+    expect(mockMemoryService.appendIndex).toHaveBeenCalledWith(
+      {
+        scope: 'global',
+      },
+      '- user.md: User profile'
+    );
     expect(result.guidance).toEqual(
       expect.arrayContaining([
         expect.stringContaining('Prefer replace when updating MEMORY.md as a whole'),

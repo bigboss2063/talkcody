@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getInjectedDocumentMock } = vi.hoisted(() => ({
-  getInjectedDocumentMock: vi.fn(),
+const { getInjectedIndexMock } = vi.hoisted(() => ({
+  getInjectedIndexMock: vi.fn(),
 }));
 
 vi.mock('@/services/memory/memory-service', () => ({
   memoryService: {
-    getInjectedDocument: getInjectedDocumentMock,
+    getInjectedIndex: getInjectedIndexMock,
   },
 }));
 
@@ -29,7 +29,7 @@ describe('GlobalMemoryProvider', () => {
   });
 
   it('reads the injected global MEMORY.md index slice', async () => {
-    getInjectedDocumentMock.mockResolvedValue({
+    getInjectedIndexMock.mockResolvedValue({
       scope: 'global',
       path: '/global-memory/MEMORY.md',
       content: '- User preference',
@@ -40,7 +40,7 @@ describe('GlobalMemoryProvider', () => {
     const provider = GlobalMemoryProvider();
     const result = await provider.resolveWithMetadata?.('global_memory', ctx);
 
-    expect(getInjectedDocumentMock).toHaveBeenCalledWith('global');
+    expect(getInjectedIndexMock).toHaveBeenCalledWith({ scope: 'global' });
     expect(result?.value).toBe('- User preference');
     expect(result?.sources).toEqual([
       {

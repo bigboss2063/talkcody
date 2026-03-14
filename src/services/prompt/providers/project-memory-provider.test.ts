@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getInjectedDocumentMock } = vi.hoisted(() => ({
-  getInjectedDocumentMock: vi.fn(),
+const { getInjectedIndexMock } = vi.hoisted(() => ({
+  getInjectedIndexMock: vi.fn(),
 }));
 
 vi.mock('@/services/memory/memory-service', () => ({
   memoryService: {
-    getInjectedDocument: getInjectedDocumentMock,
+    getInjectedIndex: getInjectedIndexMock,
   },
 }));
 
@@ -29,7 +29,7 @@ describe('ProjectMemoryProvider', () => {
   });
 
   it('reads the injected project MEMORY.md index slice', async () => {
-    getInjectedDocumentMock.mockResolvedValue({
+    getInjectedIndexMock.mockResolvedValue({
       scope: 'project',
       path: '/repo-memory/MEMORY.md',
       content: '- Important project memory',
@@ -41,9 +41,9 @@ describe('ProjectMemoryProvider', () => {
     const result = await provider.resolveWithMetadata?.('project_memory', ctx);
 
     expect(result?.value).toContain('Important project memory');
-    expect(getInjectedDocumentMock).toHaveBeenCalledWith('project', {
+    expect(getInjectedIndexMock).toHaveBeenCalledWith({
+      scope: 'project',
       workspaceRoot: '/repo',
-      taskId: undefined,
     });
     expect(result?.sources).toEqual([
       {

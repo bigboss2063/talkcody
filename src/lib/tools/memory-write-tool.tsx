@@ -1,8 +1,9 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 import { GenericToolDoing } from '@/components/tools/generic-tool-doing';
 import { GenericToolResult } from '@/components/tools/generic-tool-result';
 import { createTool } from '@/lib/create-tool';
-import { resolveMemoryWorkspaceRoot } from '@/lib/tools/memory-workspace-root';
+import { resolveMemoryContext } from '@/lib/tools/memory-workspace-root';
+import { buildMemoryWriteGuidance } from '@/services/memory/memory-guidance';
 import { memoryService } from '@/services/memory/memory-service';
 
 type MemoryWriteResult = {
@@ -17,24 +18,6 @@ type MemoryWriteResult = {
   allowScopeFallback?: boolean;
   suggestedAction?: 'ask_user_to_select_project' | 'report_error_to_user';
 };
-
-function buildWriteGuidance(target: 'index' | 'topic'): string[] {
-  if (target === 'topic') {
-    return [
-      'You updated a topic file, not the routing index.',
-      'Use one topic file for one stable subject area. Update an existing topic when the new fact belongs to the same subject, and create a new topic only when the memory has a distinct long-term retrieval purpose.',
-      'If this topic should be discoverable later, ensure MEMORY.md mentions it and explains when that topic should be read.',
-      'Do not add the same memory twice. If the fact already exists in the topic file, revise the existing note instead of appending a duplicate.',
-    ];
-  }
-
-  return [
-    'You updated MEMORY.md, which is only the routing index.',
-    'Prefer replace when updating MEMORY.md as a whole. Use append only when adding a clearly new route, not when revising an existing topic entry.',
-    'Keep detailed facts in topic files rather than expanding MEMORY.md into a long knowledge dump.',
-    'Do not add duplicate topic routes. If MEMORY.md already mentions a topic, revise that entry instead of writing another one.',
-  ];
-}
 
 export const memoryWrite = createTool({
   name: 'memoryWrite',
@@ -81,20 +64,21 @@ export const memoryWrite = createTool({
 
     try {
       if (scope === 'global') {
+        const globalContext = { scope: 'global' } as const;
         const document =
           target === 'topic'
             ? mode === 'replace'
-              ? await memoryService.writeTopicDocument('global', file_name || '', content)
-              : await memoryService.appendTopicDocument('global', file_name || '', content)
+              ? await memoryService.saveTopic(globalContext, file_name || '', content)
+              : await memoryService.appendTopic(globalContext, file_name || '', content)
             : mode === 'replace'
-              ? await memoryService.writeGlobal(content)
-              : await memoryService.appendGlobal(content);
+              ? await memoryService.saveIndex(globalContext, content)
+              : await memoryService.appendIndex(globalContext, content);
         return {
           success: true,
           scope,
           path: document.path,
           content: document.content,
-          guidance: buildWriteGuidance(target),
+          guidance: buildMemoryWriteGuidance(target),
           message:
             target === 'topic'
               ? mode === 'replace'
@@ -106,8 +90,8 @@ export const memoryWrite = createTool({
         };
       }
 
-      const workspaceRoot = await resolveMemoryWorkspaceRoot(context.taskId);
-      if (!workspaceRoot) {
+      const projectContext = await resolveMemoryContext('project', context.taskId);
+      if (!projectContext) {
         return {
           success: false,
           message:
@@ -122,21 +106,18 @@ export const memoryWrite = createTool({
       const document =
         target === 'topic'
           ? mode === 'replace'
-            ? await memoryService.writeTopicDocument('project', file_name || '', content, {
-                workspaceRoot,
-              })
-            : await memoryService.appendTopicDocument('project', file_name || '', content, {
-                workspaceRoot,
-              })
+            ? await memoryService.saveTopic(projectContext, file_name || '', content)
+            : await memoryService.appendTopic(projectContext, file_name || '', content)
           : mode === 'replace'
-            ? await memoryService.writeProjectMemoryDocument(workspaceRoot, content)
-            : await memoryService.appendProjectMemoryDocument(workspaceRoot, content);
+            ? await memoryService.saveIndex(projectContext, content)
+            : await memoryService.appendIndex(projectContext, content);
+
       return {
         success: true,
         scope,
         path: document.path,
         content: document.content,
-        guidance: buildWriteGuidance(target),
+        guidance: buildMemoryWriteGuidance(target),
         message:
           target === 'topic'
             ? mode === 'replace'

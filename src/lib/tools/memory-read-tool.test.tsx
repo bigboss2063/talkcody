@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+﻿import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -8,12 +8,10 @@ const {
   mockDatabaseService,
 } = vi.hoisted(() => ({
   mockMemoryService: {
-    getGlobalDocument: vi.fn(),
-    getProjectMemoryDocument: vi.fn(),
-    getTopicDocument: vi.fn(),
-    listTopicDocuments: vi.fn(),
-    getWorkspaceAudit: vi.fn(),
-    read: vi.fn(),
+    getIndex: vi.fn(),
+    getTopic: vi.fn(),
+    listTopics: vi.fn(),
+    auditWorkspace: vi.fn(),
   },
   mockGetEffectiveWorkspaceRoot: vi.fn(),
   mockSettingsManager: {
@@ -51,19 +49,20 @@ describe('memoryRead tool', () => {
     mockSettingsManager.getProject.mockReturnValue('default');
     mockGetEffectiveWorkspaceRoot.mockResolvedValue('/repo-from-task');
     mockDatabaseService.getProject.mockResolvedValue(null);
-    mockMemoryService.getGlobalDocument.mockResolvedValue({
-      scope: 'global',
-      path: '/app/memory/global/MEMORY.md',
-      content: 'Global memory',
+    mockMemoryService.getIndex.mockImplementation(async (context: { scope: string; workspaceRoot?: string }) => ({
+      scope: context.scope,
+      path:
+        context.scope === 'global'
+          ? '/app/memory/global/MEMORY.md'
+          : context.workspaceRoot
+            ? '/app/memory/projects/repo/MEMORY.md'
+            : null,
+      content: context.scope === 'global' ? 'Global memory' : 'Project memory',
       exists: true,
-    });
-    mockMemoryService.getProjectMemoryDocument.mockResolvedValue({
-      scope: 'project',
-      path: '/app/memory/projects/repo/MEMORY.md',
-      content: 'Project memory',
-      exists: true,
-    });
-    mockMemoryService.getTopicDocument.mockResolvedValue({
+      kind: 'index',
+      fileName: 'MEMORY.md',
+    }));
+    mockMemoryService.getTopic.mockResolvedValue({
       scope: 'global',
       path: '/app/memory/global/user.md',
       content: 'User topic',
@@ -71,9 +70,8 @@ describe('memoryRead tool', () => {
       kind: 'topic',
       fileName: 'user.md',
     });
-    mockMemoryService.listTopicDocuments.mockResolvedValue([]);
-    mockMemoryService.getWorkspaceAudit.mockResolvedValue({});
-    mockMemoryService.read.mockResolvedValue([]);
+    mockMemoryService.listTopics.mockResolvedValue([]);
+    mockMemoryService.auditWorkspace.mockResolvedValue({});
   });
 
   it('returns an explicit guidance error when target topic is missing file_name', async () => {
@@ -97,16 +95,14 @@ describe('memoryRead tool', () => {
   });
 
   it('returns index-specific guidance after reading MEMORY.md', async () => {
-    mockMemoryService.read.mockResolvedValueOnce([
-      {
-        scope: 'global',
-        path: '/app/memory/global/MEMORY.md',
-        content: '# Memory Index\n- user.md',
-        exists: true,
-        kind: 'index',
-        fileName: 'MEMORY.md',
-      },
-    ]);
+    mockMemoryService.getIndex.mockResolvedValueOnce({
+      scope: 'global',
+      path: '/app/memory/global/MEMORY.md',
+      content: '# Memory Index\n- user.md',
+      exists: true,
+      kind: 'index',
+      fileName: 'MEMORY.md',
+    });
 
     const result = await memoryRead.execute(
       {
@@ -142,12 +138,6 @@ describe('memoryRead tool', () => {
       name: 'Project One',
       root_path: '/repo-from-project',
     });
-    mockMemoryService.getProjectMemoryDocument.mockResolvedValueOnce({
-      scope: 'project',
-      path: '/app/memory/projects/repo-from-project/MEMORY.md',
-      content: 'Project memory',
-      exists: true,
-    });
 
     const result = await memoryRead.execute(
       {
@@ -163,7 +153,10 @@ describe('memoryRead tool', () => {
     expect(mockSettingsManager.getCurrentRootPath).toHaveBeenCalled();
     expect(mockSettingsManager.getProject).toHaveBeenCalled();
     expect(mockDatabaseService.getProject).toHaveBeenCalledWith('project-1');
-    expect(mockMemoryService.getProjectMemoryDocument).toHaveBeenCalledWith('/repo-from-project');
+    expect(mockMemoryService.getIndex).toHaveBeenCalledWith({
+      scope: 'project',
+      workspaceRoot: '/repo-from-project',
+    });
     expect(result).toMatchObject({
       success: true,
       mode: 'read',
@@ -178,16 +171,14 @@ describe('memoryRead tool', () => {
       name: 'Project One',
       root_path: '/repo-from-project',
     });
-    mockMemoryService.read.mockResolvedValueOnce([
-      {
-        scope: 'project',
-        path: '/app/memory/projects/repo-from-project/MEMORY.md',
-        content: '# Memory Index\n- stack.md',
-        exists: true,
-        kind: 'index',
-        fileName: 'MEMORY.md',
-      },
-    ]);
+    mockMemoryService.getIndex.mockResolvedValueOnce({
+      scope: 'project',
+      path: '/app/memory/projects/repo-from-project/MEMORY.md',
+      content: '# Memory Index\n- stack.md',
+      exists: true,
+      kind: 'index',
+      fileName: 'MEMORY.md',
+    });
 
     const result = await memoryRead.execute(
       {
@@ -200,9 +191,9 @@ describe('memoryRead tool', () => {
       }
     );
 
-    expect(mockMemoryService.read).toHaveBeenCalledWith('project', {
+    expect(mockMemoryService.getIndex).toHaveBeenCalledWith({
+      scope: 'project',
       workspaceRoot: '/repo-from-project',
-      taskId: '',
     });
     expect(result).toMatchObject({
       success: true,
@@ -239,7 +230,9 @@ describe('memoryRead tool', () => {
     );
 
     expect(screen.getByText('/app/memory/projects/repo/MEMORY.md')).toBeInTheDocument();
-    expect(screen.getByText((content) => content.includes('# Memory Index') && content.includes('- stack.md'))).toBeInTheDocument();
+    expect(
+      screen.getByText((content) => content.includes('# Memory Index') && content.includes('- stack.md'))
+    ).toBeInTheDocument();
     expect(screen.getByText('Usage guidance')).toBeInTheDocument();
   });
 });
