@@ -154,7 +154,7 @@ describe('MemorySettings', () => {
     render(<MemorySettings />);
 
     await waitFor(() => {
-      expect(screen.getByText('自动记忆工作区')).toBeInTheDocument();
+      expect(screen.getByText('长期记忆工作区')).toBeInTheDocument();
     });
 
     expect(screen.getByText('提示词注入')).toBeInTheDocument();

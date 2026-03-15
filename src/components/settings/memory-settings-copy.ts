@@ -56,7 +56,8 @@ export const EN_MEMORY_SETTINGS_COPY: MemorySettingsCopy = {
   globalTitle: 'Global Memory',
   globalDescription: 'User-level long-term memory workspace shared across projects.',
   projectTitle: 'Project Memory',
-  projectDescription: 'Repository-level long-term memory workspace shared across related worktrees.',
+  projectDescription:
+    'Repository-level long-term memory workspace shared across related worktrees.',
   indexTab: 'Index',
   topicsTab: 'Topics',
   workspaceTitle: 'Memory Workspace',
